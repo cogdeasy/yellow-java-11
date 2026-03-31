@@ -75,6 +75,12 @@ public class AuditEventsController {
                             "Field 'time' must be a valid ISO-8601 datetime"));
         }
 
+        if (!(data instanceof Map)) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ErrorResponse("validation_error",
+                            "Field 'data' must be a JSON object"));
+        }
+
         CloudEventRequest request = new CloudEventRequest();
         request.setSpecversion(specversion);
         request.setType(type);

@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -37,8 +39,15 @@ public class AuditTrailController {
             @RequestParam(required = false) String from,
             @RequestParam(required = false) String to) {
 
-        OffsetDateTime fromTime = from != null ? OffsetDateTime.parse(from) : null;
-        OffsetDateTime toTime = to != null ? OffsetDateTime.parse(to) : null;
+        OffsetDateTime fromTime;
+        OffsetDateTime toTime;
+        try {
+            fromTime = from != null ? OffsetDateTime.parse(from) : null;
+            toTime = to != null ? OffsetDateTime.parse(to) : null;
+        } catch (DateTimeParseException e) {
+            return ResponseEntity.badRequest()
+                    .body(new ListResponse<>(Collections.emptyList()));
+        }
 
         List<AuditEvent> events = auditEventService.getAuditTrail(entityType, entityId, source, fromTime, toTime);
         List<Map<String, Object>> enriched = enrichmentService.enrichEvents(events);
