@@ -1,6 +1,7 @@
 package com.libertymutual.audit.controller;
 
 import com.libertymutual.audit.dto.AuditStatsResponse;
+import com.libertymutual.audit.dto.ErrorResponse;
 import com.libertymutual.audit.dto.ListResponse;
 import com.libertymutual.audit.model.AuditEvent;
 import com.libertymutual.audit.service.AuditEventService;
@@ -14,7 +15,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -32,7 +32,7 @@ public class AuditTrailController {
     }
 
     @GetMapping
-    public ResponseEntity<ListResponse<Map<String, Object>>> getAuditTrail(
+    public ResponseEntity<?> getAuditTrail(
             @RequestParam(name = "entity_type", required = false) String entityType,
             @RequestParam(name = "entity_id", required = false) UUID entityId,
             @RequestParam(required = false) String source,
@@ -46,7 +46,8 @@ public class AuditTrailController {
             toTime = to != null ? OffsetDateTime.parse(to) : null;
         } catch (DateTimeParseException e) {
             return ResponseEntity.badRequest()
-                    .body(new ListResponse<>(Collections.emptyList()));
+                    .body(new ErrorResponse("validation_error",
+                            "Invalid date format for 'from' or 'to' parameter"));
         }
 
         List<AuditEvent> events = auditEventService.getAuditTrail(entityType, entityId, source, fromTime, toTime);
