@@ -201,8 +201,10 @@ class CustomerServiceTest {
         assertNotNull(result);
         assertEquals("456 Oak Ave", result.getCustomer().getStreet());
         assertEquals("Cambridge", result.getCustomer().getCity());
-        // MA is not in STATES_REQUIRING_REVIEW, so coverageReevaluation is null
-        assertTrue(result.getCoverageReevaluation() == null);
+        // MA is not in STATES_REQUIRING_REVIEW, so coverageReevaluation.triggered is false
+        assertNotNull(result.getCoverageReevaluation());
+        assertFalse(result.getCoverageReevaluation().isTriggered());
+        assertEquals("not_required", result.getCoverageReevaluation().getResult());
     }
 
     @Test

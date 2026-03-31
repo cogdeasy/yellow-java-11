@@ -138,7 +138,7 @@ public class CustomerService {
         // Trigger premium recalculation via policy-service
         List<Map<String, Object>> premiumRecalculation = null;
         try {
-            String policiesUrl = policyServiceUrl + "/api/v1/policies?customer_id=" + customerId;
+            String policiesUrl = policyServiceUrl + "/api/v1/policies?customer_id=" + customerId + "&status=active";
             Map<String, Object> policiesResponse = restTemplate.getForObject(policiesUrl, Map.class);
 
             if (policiesResponse != null && policiesResponse.containsKey("data")) {
@@ -169,12 +169,18 @@ public class CustomerService {
         }
 
         // Check if state requires mandatory coverage re-evaluation
-        AddressChangeResponse.CoverageReevaluation coverageReevaluation = null;
+        AddressChangeResponse.CoverageReevaluation coverageReevaluation;
         if (STATES_REQUIRING_REVIEW.contains(request.getState().toUpperCase())) {
             coverageReevaluation = new AddressChangeResponse.CoverageReevaluation(
                     true,
                     request.getState().toUpperCase(),
                     "pending_review"
+            );
+        } else {
+            coverageReevaluation = new AddressChangeResponse.CoverageReevaluation(
+                    false,
+                    request.getState().toUpperCase(),
+                    "not_required"
             );
         }
 

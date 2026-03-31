@@ -11,8 +11,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v2/audit-events")
@@ -54,6 +57,22 @@ public class AuditEventsController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ErrorResponse("validation_error",
                             "Only CloudEvents specversion 1.0 is supported"));
+        }
+
+        try {
+            UUID.fromString(id);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ErrorResponse("validation_error",
+                            "Field 'id' must be a valid UUID"));
+        }
+
+        try {
+            OffsetDateTime.parse(time);
+        } catch (DateTimeParseException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ErrorResponse("validation_error",
+                            "Field 'time' must be a valid ISO-8601 datetime"));
         }
 
         CloudEventRequest request = new CloudEventRequest();
