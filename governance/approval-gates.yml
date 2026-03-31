@@ -1,0 +1,19 @@
+# Approval Gate Configuration
+# Defines the HITL checkpoints in the agentic workflow
+
+gates:
+  gate_1_requirement_signoff:
+    name: "Requirement Sign-off"
+    phase_transition: "1 → 2"
+    approver_role: "Product Owner"
+    artifact_path: "docs/specs/requirements/*.feature"
+    mechanism: "github_pr_review"
+    blocking: true
+
+  gate_2_architecture_approval:
+    name: "Architecture Approval"
+    phase_transition: "2 → 3"
+    approver_role: "Lead Architect"
+    artifact_path: "docs/adr/ADR-*.md"
+    mechanism: "github_pr_review"
+    blocking: true

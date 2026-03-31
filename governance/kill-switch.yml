@@ -1,0 +1,26 @@
+# Kill Switch Configuration
+# Toggle agent autonomy on/off
+# When disabled, all agents revert to assistive-only mode
+
+kill_switch:
+  enabled: true
+  description: "Master toggle for agentic workflow mode"
+  
+  modes:
+    agentic:
+      description: "Full autonomous workflow with HITL gates"
+      allow_pr_creation: true
+      allow_code_generation: true
+      allow_fleet_orchestration: true
+      require_hitl_gates: true
+    
+    assistive:
+      description: "Agents provide suggestions only, no autonomous actions"
+      allow_pr_creation: false
+      allow_code_generation: false
+      allow_fleet_orchestration: false
+      require_hitl_gates: false
+
+  # Environment variable override
+  env_var: AGENT_MODE_ENABLED
+  default: true
