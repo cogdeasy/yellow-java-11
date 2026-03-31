@@ -1,0 +1,333 @@
+openapi: 3.0.3
+info:
+  title: Liberty Mutual Insurance Platform API
+  description: |
+    Java 11 enterprise insurance platform — policyholder records, policy management,
+    premium recalculation, and compliance audit trail.
+  version: 1.0.0
+  contact:
+    name: Liberty Mutual Platform Team
+
+servers:
+  - url: http://localhost:3001
+    description: Customer Service
+  - url: http://localhost:3002
+    description: Policy Service
+  - url: http://localhost:3003
+    description: Audit Service
+
+tags:
+  - name: Customers
+    description: Policyholder management
+  - name: Policies
+    description: Policy management and premium calculation
+  - name: ZipRisk
+    description: Location-based risk factors
+  - name: AuditEvents
+    description: CloudEvents v1.0 ingestion
+  - name: AuditTrail
+    description: Aggregated audit trail with enrichment
+
+paths:
+  /api/v1/customers:
+    get:
+      tags: [Customers]
+      summary: List customers
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string }
+        - name: state
+          in: query
+          schema: { type: string, minLength: 2, maxLength: 2 }
+        - name: city
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: List of customers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Customer' }
+                  total: { type: integer }
+    post:
+      tags: [Customers]
+      summary: Create a customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateCustomerRequest' }
+      responses:
+        '201':
+          description: Customer created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Customer' }
+        '400':
+          description: Validation error
+
+  /api/v1/customers/{id}:
+    get:
+      tags: [Customers]
+      summary: Get customer by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Customer found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Customer' }
+        '404':
+          description: Customer not found
+
+  /api/v1/customers/{id}/address:
+    patch:
+      tags: [Customers]
+      summary: Change customer address
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AddressRequest' }
+      responses:
+        '200':
+          description: Address changed with recalculation results
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AddressChangeResponse' }
+        '404':
+          description: Customer not found
+
+  /api/v1/policies:
+    get:
+      tags: [Policies]
+      summary: List policies
+      parameters:
+        - name: customer_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: type
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: List of policies
+    post:
+      tags: [Policies]
+      summary: Create a policy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreatePolicyRequest' }
+      responses:
+        '201':
+          description: Policy created
+
+  /api/v1/policies/{id}:
+    get:
+      tags: [Policies]
+      summary: Get policy by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Policy found
+        '404':
+          description: Policy not found
+
+  /api/v1/policies/{id}/recalculate:
+    post:
+      tags: [Policies]
+      summary: Recalculate premium for address change
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecalculateRequest' }
+      responses:
+        '200':
+          description: Recalculation result
+        '404':
+          description: Policy not found
+
+  /api/v1/zip-risk/{zipcode}:
+    get:
+      tags: [ZipRisk]
+      summary: Get risk factors for ZIP code
+      parameters:
+        - name: zipcode
+          in: path
+          required: true
+          schema: { type: string, pattern: '^\d{5}$' }
+      responses:
+        '200':
+          description: Risk data found
+        '404':
+          description: Risk data not found
+
+  /api/v2/audit-events:
+    post:
+      tags: [AuditEvents]
+      summary: Ingest a CloudEvent v1.0
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CloudEvent' }
+      responses:
+        '201':
+          description: Event ingested
+        '400':
+          description: Invalid CloudEvent
+
+  /api/v2/audit-trail:
+    get:
+      tags: [AuditTrail]
+      summary: Get aggregated audit trail with enrichment
+      parameters:
+        - name: entity_type
+          in: query
+          schema: { type: string }
+        - name: entity_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: source
+          in: query
+          schema: { type: string }
+        - name: from
+          in: query
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Enriched audit trail
+
+  /api/v2/audit-trail/summary/stats:
+    get:
+      tags: [AuditTrail]
+      summary: Get audit summary statistics
+      responses:
+        '200':
+          description: Aggregated statistics
+
+  /api/v2/audit-trail/{type}/{id}:
+    get:
+      tags: [AuditTrail]
+      summary: Get audit trail for specific entity
+      parameters:
+        - name: type
+          in: path
+          required: true
+          schema: { type: string }
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Entity audit trail
+
+components:
+  schemas:
+    Customer:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        first_name: { type: string }
+        last_name: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string }
+        street: { type: string }
+        city: { type: string }
+        state: { type: string, minLength: 2, maxLength: 2 }
+        zip: { type: string, pattern: '^\d{5}$' }
+        status: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    CreateCustomerRequest:
+      type: object
+      required: [first_name, last_name, email, address]
+      properties:
+        first_name: { type: string }
+        last_name: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string }
+        address: { $ref: '#/components/schemas/AddressRequest' }
+
+    AddressRequest:
+      type: object
+      required: [street, city, state, zip]
+      properties:
+        street: { type: string }
+        city: { type: string }
+        state: { type: string, minLength: 2, maxLength: 2 }
+        zip: { type: string, pattern: '^\d{5}$' }
+
+    AddressChangeResponse:
+      type: object
+      properties:
+        customer: { $ref: '#/components/schemas/Customer' }
+        premium_recalculation: { type: array, items: { type: object } }
+        coverage_reevaluation:
+          type: object
+          properties:
+            triggered: { type: boolean }
+            state: { type: string }
+            result: { type: string }
+
+    CreatePolicyRequest:
+      type: object
+      required: [customer_id, type, coverage_amount]
+      properties:
+        customer_id: { type: string, format: uuid }
+        type: { type: string }
+        coverage_amount: { type: number }
+        zip_code: { type: string }
+
+    RecalculateRequest:
+      type: object
+      required: [new_zipcode]
+      properties:
+        new_zipcode: { type: string, pattern: '^\d{5}$' }
+        old_zipcode: { type: string, pattern: '^\d{5}$' }
+
+    CloudEvent:
+      type: object
+      required: [specversion, type, source, id, time, data]
+      properties:
+        specversion: { type: string, enum: ['1.0'] }
+        type: { type: string }
+        source: { type: string }
+        id: { type: string }
+        time: { type: string, format: date-time }
+        data: { type: object }

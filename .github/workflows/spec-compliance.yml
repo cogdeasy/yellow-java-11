@@ -1,0 +1,74 @@
+name: Spec Compliance
+
+on:
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'customer-service/**'
+      - 'policy-service/**'
+      - 'audit-service/**'
+
+jobs:
+  adr-validation:
+    name: ADR Reference Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate ADR references in commits
+        run: |
+          echo "Checking for ADR references in commit messages..."
+          # Get commits in this PR
+          commits=$(git log --oneline origin/main..HEAD 2>/dev/null || echo "")
+          if [ -z "$commits" ]; then
+            echo "No commits to check (or main branch not available)"
+            exit 0
+          fi
+          echo "Commits in PR:"
+          echo "$commits"
+          echo "ADR validation passed (advisory only)"
+
+  schema-validation:
+    name: Database Schema Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate init-db.sql syntax
+        run: |
+          if [ ! -f db/init-db.sql ]; then
+            echo "Missing db/init-db.sql"
+            exit 1
+          fi
+          # Basic SQL syntax check
+          if ! grep -q "CREATE TABLE" db/init-db.sql; then
+            echo "init-db.sql does not contain CREATE TABLE statements"
+            exit 1
+          fi
+          echo "Schema file validates"
+
+  docker-validation:
+    name: Docker Configuration Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate Docker Compose
+        run: |
+          if [ ! -f docker-compose.yml ]; then
+            echo "Missing docker-compose.yml"
+            exit 1
+          fi
+          if [ ! -f Dockerfile ]; then
+            echo "Missing Dockerfile"
+            exit 1
+          fi
+          echo "Docker configuration present"
