@@ -1,0 +1,90 @@
+name: CI — Build & Test
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build:
+    name: Build & Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v4
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Build and run unit tests
+        run: mvn clean test -B
+
+      - name: Compile all modules
+        run: mvn compile -B
+
+  integration-tests:
+    name: Integration Tests (Testcontainers)
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v4
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Run integration tests
+        run: mvn verify -B
+
+  validate-docs:
+    name: Validate Documentation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check ADR documents exist
+        run: |
+          for adr in ADR-0001 ADR-0002 ADR-0003 ADR-0004; do
+            if ! ls docs/adr/${adr}* 2>/dev/null; then
+              echo "Missing ADR: ${adr}"
+              exit 1
+            fi
+          done
+          echo "All ADR documents present"
+
+      - name: Check Gherkin specs exist
+        run: |
+          count=$(find docs/specs/requirements -name '*.feature' | wc -l)
+          if [ "$count" -lt 3 ]; then
+            echo "Expected at least 3 Gherkin feature files, found $count"
+            exit 1
+          fi
+          echo "Found $count Gherkin feature files"
+
+      - name: Check OpenAPI spec exists
+        run: |
+          if [ ! -f docs/specs/api/openapi.yml ]; then
+            echo "Missing OpenAPI specification"
+            exit 1
+          fi
+          echo "OpenAPI specification present"
+
+      - name: Check governance documents
+        run: |
+          test -f docs/governance/hitl-gates.md || (echo "Missing HITL gates" && exit 1)
+          test -f docs/governance/trism-policy.md || (echo "Missing TRiSM policy" && exit 1)
+          test -f governance/kill-switch.yml || (echo "Missing kill switch config" && exit 1)
+          echo "All governance documents present"

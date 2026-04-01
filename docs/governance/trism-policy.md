@@ -1,37 +1,45 @@
-# TRiSM (Trust, Risk, Security Management) Policy
+# TRiSM Policy — Trust, Risk, and Security Management
 
 ## Overview
-Every agent decision is traceable from business requirement through to deployed code
-and runtime audit events. This policy defines the traceability chain.
+This document defines the Trust, Risk, and Security Management (TRiSM) policy for the Liberty Mutual Insurance Platform. TRiSM ensures that AI-assisted development maintains transparency, accountability, and security.
 
-## Traceability Chain
-```
-Business Requirement (English)
-    ↓ Requirement_ID: REQ-{DOMAIN}-{NNN}
-Gherkin Specification (BDD)
-    ↓ linked via Requirement_ID
-Architecture Decision Record (ADR)
-    ↓ ADR-NNNN referenced in commits
-Integration Tests (Testcontainers)
-    ↓ tests implement Gherkin scenarios
-Implementation (Java 11 / Spring Boot)
-    ↓ CI/CD pipeline
-Audit Trail (Runtime)
-    ↓ CloudEvents v1.0
-Compliance Report
-```
+## Principles
 
-## Requirements
-1. Every Gherkin scenario MUST have a `Requirement_ID`
-2. Every ADR MUST reference the originating `Requirement_ID`
-3. Every code commit MUST reference an `ADR-NNNN`
-4. Every write operation MUST emit a CloudEvents v1.0 audit event
-5. Agent Decision Logs MUST be included in ADR documents
+### 1. Transparency
+- All AI-generated code changes MUST be clearly attributed in commit messages
+- ADR documents MUST be referenced in PRs that modify core business logic
+- Audit trail provides full traceability of all data changes
 
-## Compliance Mapping
-| Standard | How We Comply |
-|----------|--------------|
-| NAIC Model Audit Rule | Immutable audit trail via audit-service |
-| SOX | Requirement → ADR → Code → Audit Event chain |
-| BCBS-239 | Full data lineage from requirement to runtime |
-| GDPR | Actor tracking in all audit events |
+### 2. Risk Management
+- Premium recalculation uses deterministic, auditable formulas (ADR-0004)
+- Unknown ZIP codes trigger manual review rather than silent defaults
+- States requiring mandatory coverage re-evaluation (FL, CA, TX) are explicitly coded
+- Kill switch enables immediate service degradation if anomalies detected
+
+### 3. Security
+- No hardcoded secrets — all credentials via environment variables
+- Input validation on all API endpoints (JSR 380)
+- SQL injection prevention via parameterized queries (Spring Data JPA)
+- CORS and rate limiting configured at infrastructure level
+
+## Compliance Controls
+
+### Data Integrity
+- All write operations emit CloudEvents v1.0 audit events
+- Before/after snapshots capture exact field changes
+- Raw event JSON preserved for forensic analysis
+
+### Access Control
+- Service-to-service communication via internal network
+- External API access requires authentication (future: OAuth 2.0)
+- Database credentials rotated via environment variables
+
+### Monitoring
+- Health check endpoints on all services (`/health`)
+- Spring Boot Actuator for operational metrics
+- Structured logging with correlation IDs
+
+## Review Cadence
+- Monthly: Review audit trail for anomalies
+- Quarterly: Update risk assessments for ZIP risk data
+- Annually: Full TRiSM policy review

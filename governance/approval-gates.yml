@@ -1,19 +1,54 @@
-# Approval Gate Configuration
-# Defines the HITL checkpoints in the agentic workflow
+# Approval Gates Configuration
+# Defines required approvals for different change types
 
 gates:
-  gate_1_requirement_signoff:
-    name: "Requirement Sign-off"
-    phase_transition: "1 → 2"
-    approver_role: "Product Owner"
-    artifact_path: "docs/specs/requirements/*.feature"
-    mechanism: "github_pr_review"
-    blocking: true
+  schema_change:
+    description: "Database schema modifications"
+    required_approvers: 2
+    approver_roles:
+      - tech-lead
+      - dba
+    artifacts:
+      - migration_script
+      - rollback_script
+      - impact_analysis
 
-  gate_2_architecture_approval:
-    name: "Architecture Approval"
-    phase_transition: "2 → 3"
-    approver_role: "Lead Architect"
-    artifact_path: "docs/adr/ADR-*.md"
-    mechanism: "github_pr_review"
-    blocking: true
+  api_change:
+    description: "API endpoint additions or modifications"
+    required_approvers: 1
+    approver_roles:
+      - tech-lead
+    artifacts:
+      - adr_reference
+      - openapi_spec_update
+      - integration_tests
+
+  business_logic:
+    description: "Premium calculation or coverage evaluation changes"
+    required_approvers: 2
+    approver_roles:
+      - tech-lead
+      - compliance-officer
+    artifacts:
+      - adr_reference
+      - actuarial_review
+      - gherkin_specs
+
+  security:
+    description: "Authentication, authorization, or data access changes"
+    required_approvers: 2
+    approver_roles:
+      - tech-lead
+      - security-engineer
+    artifacts:
+      - security_review
+      - penetration_test_results
+
+  dependency_update:
+    description: "Third-party dependency version changes"
+    required_approvers: 1
+    approver_roles:
+      - tech-lead
+    artifacts:
+      - vulnerability_scan
+      - compatibility_test

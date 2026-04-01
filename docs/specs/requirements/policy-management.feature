@@ -1,58 +1,57 @@
-# Requirement_ID: REQ-POL-001
-# HITL Gate 1: Pending PO Approval
-
-@policy-service @phase-1-approved
-Feature: Policy Management API
-  As a policy platform administrator
-  I want to manage insurance policies and premiums
-  So that I can maintain accurate policy data and pricing
+Feature: Policy Management
+  As a Liberty Mutual insurance platform
+  I need to manage insurance policies and calculate premiums
+  So that policies reflect accurate risk-based pricing
 
   Background:
-    Given the policy-service is running on port 8082
+    Given the policy-service is running on port 3002
+    And the database contains the standard schema
 
-  @happy-path
-  Scenario: Create a new insurance policy
-    Given I have valid policy details including type, customer_id, and coverage
-    When I send a POST request to "/api/v1/policies" with policy data
+  Scenario: Create a policy with known ZIP code
+    When I POST to "/api/v1/policies" with:
+      | customer_id                          | type | coverage_amount | zip_code |
+      | a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d | home | 500000          | 33101    |
     Then the response status should be 201
-    And the policy status should be "active"
+    And the response "premium_annual" should be 8750.00
     And an audit event "policy.created" should be emitted
 
-  @happy-path
-  Scenario: List policies with filtering
-    When I send a GET request to "/api/v1/policies?status=active"
-    Then the response status should be 200
-    And the response should contain a "data" array
-    And all returned policies should have status "active"
+  Scenario: Create a policy with unknown ZIP code
+    When I POST to "/api/v1/policies" with:
+      | customer_id                          | type | coverage_amount | zip_code |
+      | a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d | auto | 300000          | 99999    |
+    Then the response status should be 201
+    And the response "premium_annual" should be 3000.00
 
-  @happy-path
-  Scenario: Get policies for a specific customer
-    Given a customer has one or more active policies
-    When I send a GET request to "/api/v1/policies?customer_id={id}"
+  Scenario: Recalculate premium for address change to high-risk area
+    Given a policy exists with coverage 500000 and zip "02101"
+    When I POST to "/api/v1/policies/{id}/recalculate" with:
+      | new_zipcode | old_zipcode |
+      | 33101       | 02101       |
     Then the response status should be 200
-    And all returned policies should belong to the specified customer
-
-  @happy-path
-  Scenario: Get a single policy by ID
-    Given a policy exists with a known ID
-    When I send a GET request to "/api/v1/policies/{id}"
-    Then the response status should be 200
-    And the response should contain the policy details including premium and coverage
-
-  @premium-calc
-  Scenario: Recalculate policy premium
-    Given a policy exists with a known premium
-    When I send a POST request to "/api/v1/policies/{id}/recalculate" with new ZIP code
-    Then the response status should be 200
-    And the premium should be recalculated based on ZipRisk factors
+    And the "new_premium" should be 8750.00
     And an audit event "policy.premium_recalculated" should be emitted
 
-  @error
-  Scenario: Reject policy creation without required fields
-    When I send a POST request to "/api/v1/policies" with empty body
-    Then the response status should be 400
+  Scenario: Recalculate premium for unknown ZIP code
+    Given a policy exists with coverage 500000 and zip "02101"
+    When I POST to "/api/v1/policies/{id}/recalculate" with:
+      | new_zipcode | old_zipcode |
+      | 99999       | 02101       |
+    Then the response status should be 200
+    And the "status" should be "pending_review"
 
-  @error
-  Scenario: Return 404 for non-existent policy
-    When I send a GET request to "/api/v1/policies/{non-existent-id}"
+  Scenario: Query ZIP risk data
+    When I GET "/api/v1/zip-risk/33101"
+    Then the response status should be 200
+    And the "state" should be "FL"
+    And the "flood_zone" should be true
+    And the "base_modifier" should be 1.75
+
+  Scenario: Query unknown ZIP risk data
+    When I GET "/api/v1/zip-risk/99999"
     Then the response status should be 404
+
+  Scenario: List policies by customer
+    Given customer has 2 active policies
+    When I GET "/api/v1/policies?customer_id={customer_id}"
+    Then the response status should be 200
+    And the response "total" should be 2

@@ -1,26 +1,58 @@
 # Kill Switch Configuration
-# Toggle agent autonomy on/off
-# When disabled, all agents revert to assistive-only mode
+# Emergency controls for the Liberty Mutual Insurance Platform
+# ADR-0003: Audit trail and operational safety
 
-kill_switch:
-  enabled: true
-  description: "Master toggle for agentic workflow mode"
-  
-  modes:
-    agentic:
-      description: "Full autonomous workflow with HITL gates"
-      allow_pr_creation: true
-      allow_code_generation: true
-      allow_fleet_orchestration: true
-      require_hitl_gates: true
-    
-    assistive:
-      description: "Agents provide suggestions only, no autonomous actions"
-      allow_pr_creation: false
-      allow_code_generation: false
-      allow_fleet_orchestration: false
-      require_hitl_gates: false
+kill_switches:
+  # Master kill switch — disables all non-read operations
+  master:
+    enabled: false
+    description: "Emergency stop for all write operations across all services"
+    affects:
+      - customer-service
+      - policy-service
+      - audit-service
+    operations_blocked:
+      - CREATE
+      - UPDATE
+      - DELETE
 
-  # Environment variable override
-  env_var: AGENT_MODE_ENABLED
-  default: true
+  # Premium recalculation kill switch
+  premium_recalculation:
+    enabled: false
+    description: "Disable automatic premium recalculation on address changes"
+    affects:
+      - policy-service
+    operations_blocked:
+      - RECALCULATE_PREMIUM
+    fallback: "Flag policies for manual review"
+
+  # Audit event emission kill switch
+  audit_emission:
+    enabled: false
+    description: "Disable audit event emission (use only in extreme cases)"
+    affects:
+      - customer-service
+      - policy-service
+    operations_blocked:
+      - EMIT_AUDIT_EVENT
+    warning: "Disabling audit emission violates compliance requirements"
+
+  # Coverage re-evaluation kill switch
+  coverage_reevaluation:
+    enabled: false
+    description: "Disable automatic coverage re-evaluation triggers"
+    affects:
+      - customer-service
+      - policy-service
+    operations_blocked:
+      - COVERAGE_REEVALUATION
+    fallback: "All coverage changes routed to manual review queue"
+
+activation_protocol:
+  1: "Identify the issue and affected service(s)"
+  2: "Notify the on-call engineer and team lead"
+  3: "Activate the appropriate kill switch"
+  4: "Monitor service health and audit logs"
+  5: "Investigate root cause"
+  6: "Deactivate kill switch only after resolution is verified"
+  7: "Post-incident review within 48 hours"

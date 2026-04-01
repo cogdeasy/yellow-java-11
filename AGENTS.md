@@ -1,112 +1,83 @@
-# AGENTS.md - Devin Configuration for Spec-Driven Development (Java 11 Edition)
+# AGENTS.md — Liberty Mutual Insurance Platform (Java 11)
 
-## Project Overview
-This is a **Software Factory 2.0** demo showcasing spec-driven development with
-agentic workflows, HITL gates, ADR governance, and test-forward implementation —
-tailored for the insurance domain, implemented in **Java 11** with Spring Boot.
+## Overview
+This is a Java 11 / Spring Boot 2.7.x enterprise insurance platform implementing policyholder records, policy management, premium recalculation, and compliance audit trail. It mirrors the TypeScript `yellow-spec-dd` and `yellow-town` reference implementations.
 
 ## Architecture
-- **Multi-module Maven project** with 3 services representing upstream source systems
-- **customer-service** (port 8081): Policyholder Records source system
-- **policy-service** (port 8082): Policy Platform source system (premium calc, coverage)
-- **audit-service** (port 8083): Compliance Data Store (ODS) — aggregated audit trail
-- **PostgreSQL** for persistence, **Redis** for caching
-- **Docker Compose** for local development
-- **Demo Scenario**: "Change Home Address — Policy Impact" across source systems
+- **Monorepo**: Maven multi-module (ADR-0001)
+- **Framework**: Spring Boot 2.7.18 with Java 11 (ADR-0002)
+- **Database**: PostgreSQL 15 (shared across services)
+- **Cache**: Redis 7
+- **Event Format**: CloudEvents v1.0 (ADR-0003)
 
-## Technology Stack
-- **Java 11** (LTS)
-- **Spring Boot 2.7.x** (last major line with Java 11 support)
-- **Spring Data JPA** with Hibernate for persistence
-- **Maven** for build management (multi-module)
-- **Testcontainers** for integration tests (real PostgreSQL containers)
-- **JUnit 5** + **AssertJ** for testing
-- **Cucumber-JVM** for BDD/Gherkin test execution
-- **Flyway** for database migrations
-- **OpenAPI 3.0** (springdoc-openapi) for API documentation
+## Services
 
-## Domain Context (Insurance)
-- Address changes affect policy premiums (new ZIP = new risk factors)
-- Coverage eligibility must be re-evaluated (flood zone, wildfire zone, hurricane zone)
-- States FL, CA, TX require mandatory coverage re-evaluation on address change
-- Premium recalculation uses the ZipRisk API at `/api/v1/zip-risk/{zipcode}`
-- All address changes must be logged with before/after snapshots for SOX compliance
-- The audit-service expects events in CloudEvents v1.0 format
-- Compliance requirements: NAIC Model Audit Rule, SOX, BCBS-239, GDPR
+| Service          | Port | Description                           |
+|-----------------|------|---------------------------------------|
+| customer-service | 3001 | Policyholder records & address changes |
+| policy-service   | 3002 | Policy management & premium calculation|
+| audit-service    | 3003 | Compliance audit trail                 |
 
-## Key Commands
+## Development Rules
+
+### Mandatory
+- Integration tests MUST use Testcontainers (real PostgreSQL containers)
+- Commit messages MUST reference ADR-NNNN for code changes
+- PRs modifying core logic MUST link to a valid ADR
+- No hardcoded secrets (hard fail)
+- All write operations MUST emit audit events (CloudEvents v1.0)
+- Premium recalculation MUST use ZipRisk API for location-based risk factors
+- Address changes in FL, CA, TX require mandatory coverage re-evaluation
+
+### Build & Test
 ```bash
-# Build all modules
-mvn clean install
-
-# Run all tests
-mvn test
+# Compile all modules
+mvn compile
 
 # Run unit tests only
-mvn test -Dgroups="unit"
+mvn test
 
-# Run integration tests (requires Docker for Testcontainers)
-mvn test -Dgroups="integration"
+# Run all tests including integration (requires Docker for Testcontainers)
+mvn verify
 
-# Run BDD/Cucumber tests
-mvn test -Dgroups="bdd"
-
-# Start all services locally
-docker compose up -d
-
-# Validate ADR documents
-./scripts/validate-adr.sh
-
-# Validate Gherkin specifications
-./scripts/validate-specs.sh
+# Start local environment
+docker-compose up -d
 ```
 
-## Agentic Workflow Protocol
-When working on this codebase, follow the 5-phase workflow:
+### Code Conventions
+- Jackson `SNAKE_CASE` for all JSON serialization
+- UUID primary keys for all entities
+- `OffsetDateTime` for all timestamps
+- Spring Data JPA repositories (no raw SQL in application code)
+- `@Valid` on all request body parameters
+- Structured error responses: `{"error": "type", "message": "details"}`
 
-### Phase 1: Requirement Synthesis
-- Read the Gherkin specs in `docs/specs/requirements/`
-- New features require a `.feature` file with HITL Gate 1 approval
-- Playbook: `playbooks/01-requirement-synthesis.md`
+### Workflow Protocol
+1. Read relevant ADR before making changes
+2. Create feature branch: `devin/$(date +%s)-description`
+3. Implement with tests
+4. Verify: `mvn verify`
+5. Create PR referencing ADR
+6. Pass all HITL gates
 
-### Phase 2: Architecture Review
-- Check ADRs in `docs/adr/` before implementing
-- New architectural decisions require an ADR with HITL Gate 2 approval
-- Playbook: `playbooks/02-architecture-review.md`
+## Key Business Logic
 
-### Phase 3: Test-Forward Development
-- Write integration tests FIRST using Testcontainers
-- **NO PURE MOCKING** for DB or external API interactions
-- Reference ADR-NNNN in commit messages
-- Playbook: `playbooks/03-test-forward-development.md`
-
-### Phase 4: Fleet Orchestration
-- For cross-service changes, use the fleet orchestration playbook
-- Query DeepWiki for service dependencies
-- Playbook: `playbooks/04-fleet-orchestration.md`
-
-### Phase 5: Verification
-- Ensure ADR linkage in PRs
-- Verify Testcontainers usage (no mocking)
-- Playbook: `playbooks/05-verification-review.md`
-
-## Constraints
-1. Integration tests MUST use Testcontainers (real PostgreSQL containers)
-2. Commit messages MUST reference ADR-NNNN for code changes
-3. PRs modifying core logic MUST link to a valid ADR
-4. No hardcoded secrets (ITSO Agent hard fail)
-5. All write operations MUST emit audit events (CloudEvents v1.0)
-6. Premium recalculation MUST use ZipRisk API for location-based risk factors
-7. Address changes in FL, CA, TX require mandatory coverage re-evaluation
-
-## File Structure
+### Premium Calculation (ADR-0004)
 ```
-docs/adr/          - Architecture Decision Records (TRiSM)
-docs/specs/        - Gherkin requirements + OpenAPI specs
-docs/governance/   - HITL gates, TRiSM policy, kill switch docs
-services/          - Spring Boot microservice implementations
-playbooks/         - Agent playbooks for each phase
-scripts/           - Validation and indexing scripts
-governance/        - Kill switch and approval gate configs
-.github/workflows/ - CI pipelines with HITL enforcement
+premium = coverage_amount × 0.01 × zip_risk_modifier
 ```
+
+### States Requiring Coverage Re-evaluation
+- Florida (FL) — hurricane/flood risk
+- California (CA) — wildfire risk
+- Texas (TX) — flood/hurricane risk
+
+### ZIP Risk Data
+| ZIP   | State | Modifier | Review Required |
+|-------|-------|----------|-----------------|
+| 02101 | MA    | 1.10     | No              |
+| 33101 | FL    | 1.75     | Yes             |
+| 90001 | CA    | 1.55     | Yes             |
+| 77001 | TX    | 1.60     | Yes             |
+| 10001 | NY    | 1.30     | No              |
+| 80201 | CO    | 1.05     | No              |
