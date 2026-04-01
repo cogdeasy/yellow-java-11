@@ -1,20 +1,18 @@
 package com.libertymutual.audit.model;
 
-import com.vladmihalcea.hibernate.type.json.JsonBinaryType;
+import io.hypersistence.utils.hibernate.type.json.JsonBinaryType;
 import org.hibernate.annotations.Type;
-import org.hibernate.annotations.TypeDef;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Table;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.UUID;
 
 @Entity
 @Table(name = "audit_events")
-@TypeDef(name = "jsonb", typeClass = JsonBinaryType.class)
 public class AuditEvent {
 
     @Id
@@ -45,11 +43,11 @@ public class AuditEvent {
     @Column(length = 100)
     private String actor;
 
-    @Type(type = "jsonb")
+    @Type(JsonBinaryType.class)
     @Column(columnDefinition = "jsonb")
     private Map<String, Object> changes;
 
-    @Type(type = "jsonb")
+    @Type(JsonBinaryType.class)
     @Column(name = "raw_event", columnDefinition = "jsonb", nullable = false)
     private Map<String, Object> rawEvent;
 

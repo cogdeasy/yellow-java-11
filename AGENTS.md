@@ -1,14 +1,14 @@
-# AGENTS.md — Insurance Platform (Java 11)
+# AGENTS.md — Insurance Platform (Java 17)
 
 ## Overview
-This repository contains two Java 11 / Spring Boot enterprise insurance systems:
+This repository contains two Java 17 / Spring Boot enterprise insurance systems:
 
-1. **Liberty Mutual Platform** — Multi-module microservices (customer-service, policy-service, audit-service) built with Spring Boot 2.7.x, PostgreSQL, and Redis.
-2. **Yellow Insurance Claims** — Single-module claims management system (claims-service) built with Spring Boot 2.5.x, H2 in-memory database. Contains intentional security vulnerabilities for spec-driven development demos.
+1. **Liberty Mutual Platform** — Multi-module microservices (customer-service, policy-service, audit-service) built with Spring Boot 3.2.x, PostgreSQL, and Redis.
+2. **Yellow Insurance Claims** — Single-module claims management system (claims-service) built with Spring Boot 3.2.x, H2 in-memory database. Contains intentional security vulnerabilities for spec-driven development demos.
 
 ## Architecture
 - **Monorepo**: Maven multi-module (ADR-0001)
-- **Framework**: Spring Boot 2.7.18 (platform) / 2.5.14 (claims) with Java 11
+- **Framework**: Spring Boot 3.2.5 with Java 17
 - **Database**: PostgreSQL 15 (platform), H2 in-memory (claims dev)
 - **Cache**: Redis 7 (platform)
 - **Event Format**: CloudEvents v1.0 (ADR-0003)
@@ -58,7 +58,7 @@ mvn spring-boot:run -pl claims-service
 - Spring Data JPA repositories (no raw SQL in application code)
 - `@Valid` on all request body parameters
 - Structured error responses: `{"error": "type", "message": "details"}`
-- Target Java 11 compatibility — do not use Java 12+ features
+- Target Java 17 compatibility
 
 ### Workflow Protocol
 1. Read relevant ADR before making changes
@@ -112,7 +112,7 @@ This application intentionally contains these vulnerability categories for remed
 - **Tech Lead**: Orchestrates work, manages priorities, reviews PRs
 
 ### Constraints
-1. Target Java 11 compatibility — do not use Java 12+ features
+1. Target Java 17 compatibility
 2. All vulnerability fixes must include regression tests
 3. Commit messages must reference issue IDs (SEC-NNN or CQ-NNN)
 4. PRs must link to ADR for architectural changes

@@ -21,13 +21,14 @@ public interface AuditEventRepository extends JpaRepository<AuditEvent, UUID> {
 
     List<AuditEvent> findByEntityTypeAndEntityIdOrderByEventTimeAsc(String entityType, UUID entityId);
 
-    @Query("SELECT a FROM AuditEvent a WHERE " +
-            "(:entityType IS NULL OR a.entityType = :entityType) AND " +
-            "(:entityId IS NULL OR a.entityId = :entityId) AND " +
-            "(:source IS NULL OR a.source = :source) AND " +
-            "(:fromTime IS NULL OR a.eventTime >= :fromTime) AND " +
-            "(:toTime IS NULL OR a.eventTime <= :toTime) " +
-            "ORDER BY a.eventTime DESC")
+    @Query(value = "SELECT * FROM audit_events a WHERE " +
+            "(CAST(:entityType AS VARCHAR) IS NULL OR a.entity_type = :entityType) AND " +
+            "(CAST(:entityId AS UUID) IS NULL OR a.entity_id = :entityId) AND " +
+            "(CAST(:source AS VARCHAR) IS NULL OR a.source = :source) AND " +
+            "(CAST(:fromTime AS TIMESTAMP WITH TIME ZONE) IS NULL OR a.event_time >= :fromTime) AND " +
+            "(CAST(:toTime AS TIMESTAMP WITH TIME ZONE) IS NULL OR a.event_time <= :toTime) " +
+            "ORDER BY a.event_time DESC",
+            nativeQuery = true)
     List<AuditEvent> findByFilters(
             @Param("entityType") String entityType,
             @Param("entityId") UUID entityId,

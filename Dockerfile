@@ -1,7 +1,7 @@
 # Multi-stage Dockerfile for Liberty Mutual Insurance Platform services
-# ADR-0002: Spring Boot 2.7.x with Java 11
+# ADR-0002: Spring Boot 3.2.x with Java 17
 
-FROM maven:3.9-eclipse-temurin-11 AS builder
+FROM maven:3.9-eclipse-temurin-17 AS builder
 
 WORKDIR /build
 COPY pom.xml .
@@ -17,7 +17,7 @@ COPY . .
 RUN mvn package -DskipTests -B
 
 # --- customer-service ---
-FROM eclipse-temurin:11-jre-alpine AS customer-service
+FROM eclipse-temurin:17-jre-alpine AS customer-service
 WORKDIR /app
 COPY --from=builder /build/customer-service/target/*.jar app.jar
 EXPOSE 3001
@@ -26,7 +26,7 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
 ENTRYPOINT ["java", "-jar", "app.jar"]
 
 # --- policy-service ---
-FROM eclipse-temurin:11-jre-alpine AS policy-service
+FROM eclipse-temurin:17-jre-alpine AS policy-service
 WORKDIR /app
 COPY --from=builder /build/policy-service/target/*.jar app.jar
 EXPOSE 3002
@@ -35,7 +35,7 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
 ENTRYPOINT ["java", "-jar", "app.jar"]
 
 # --- audit-service ---
-FROM eclipse-temurin:11-jre-alpine AS audit-service
+FROM eclipse-temurin:17-jre-alpine AS audit-service
 WORKDIR /app
 COPY --from=builder /build/audit-service/target/*.jar app.jar
 EXPOSE 3003
