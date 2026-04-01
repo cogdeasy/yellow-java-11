@@ -376,6 +376,7 @@ public class ClaimService {
                     claim.setAssignedAdjuster("batch-processor");
                     claim.setUpdatedAt(LocalDateTime.now());
                     claimRepository.save(claim);
+                    claimCache.remove("claim_" + id);
                     logAudit("CLAIM", id, "BATCH_PROCESSED", "OPEN", "UNDER_REVIEW");
                     processed++;
                 } else if (claim == null) {
