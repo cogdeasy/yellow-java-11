@@ -62,4 +62,54 @@ public class PolicyController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> getZipRisk(@PathVariable String zipcode) {
         return ResponseEntity.ok(ApiResponse.ok(policyService.getZipRiskFactors(zipcode)));
     }
+
+    /**
+     * Update an existing policy.
+     * ISSUE: Accepts entity directly - mass assignment vulnerability
+     */
+    @PutMapping("/{id}")
+    public ResponseEntity<ApiResponse<Policy>> updatePolicy(
+            @PathVariable Long id, @RequestBody Policy updates) {
+        try {
+            Policy policy = policyService.updatePolicy(id, updates);
+            return ResponseEntity.ok(ApiResponse.ok(policy));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error("Policy not found", e.getMessage()));
+        }
+    }
+
+    /**
+     * Cancel a policy.
+     * ISSUE: No refund calculation, no check for open claims
+     */
+    @PostMapping("/{id}/cancel")
+    public ResponseEntity<ApiResponse<Policy>> cancelPolicy(
+            @PathVariable Long id,
+            @RequestBody(required = false) Map<String, String> request) {
+        try {
+            String reason = request != null ? request.getOrDefault("reason", "No reason provided") : "No reason provided";
+            Policy policy = policyService.cancelPolicy(id, reason);
+            return ResponseEntity.ok(ApiResponse.ok(policy));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Failed to cancel policy", e.getMessage()));
+        }
+    }
+
+    /**
+     * Renew a policy for another year.
+     * ISSUE: Hardcoded 3% premium increase
+     */
+    @PostMapping("/{id}/renew")
+    public ResponseEntity<ApiResponse<Policy>> renewPolicy(@PathVariable Long id) {
+        try {
+            Policy policy = policyService.renewPolicy(id);
+            return ResponseEntity.ok(ApiResponse.ok(policy));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Failed to renew policy", e.getMessage()));
+        }
+    }
+
 }

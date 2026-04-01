@@ -73,6 +73,15 @@ public class DocumentController {
         return ResponseEntity.ok(ApiResponse.ok(documentService.getDocumentsByClaimId(claimId)));
     }
 
+    /**
+     * Get all documents for a specific customer.
+     * VULNERABILITY: IDOR - no check that authenticated user owns this customer
+     */
+    @GetMapping("/customer/{customerId}")
+    public ResponseEntity<ApiResponse<List<Document>>> getDocumentsByCustomerId(@PathVariable Long customerId) {
+        return ResponseEntity.ok(ApiResponse.ok(documentService.getDocumentsByCustomerId(customerId)));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<String>> deleteDocument(@PathVariable Long id) {
         documentService.deleteDocument(id);

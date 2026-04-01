@@ -1,7 +1,10 @@
 package com.yellowinsurance.claims.service;
 
+import com.yellowinsurance.claims.model.AuditLog;
 import com.yellowinsurance.claims.model.Customer;
+import com.yellowinsurance.claims.model.Policy;
 import com.yellowinsurance.claims.model.dto.CustomerDTO;
+import com.yellowinsurance.claims.repository.AuditLogRepository;
 import com.yellowinsurance.claims.repository.CustomerRepository;
 import com.yellowinsurance.claims.util.EncryptionUtils;
 import org.apache.logging.log4j.LogManager;
@@ -25,6 +28,12 @@ public class CustomerService {
 
     @Autowired
     private CustomerRepository customerRepository;
+
+    @Autowired
+    private AuditLogRepository auditLogRepository;
+
+    @Autowired
+    private PolicyService policyService;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -127,6 +136,112 @@ public class CustomerService {
         // VULNERABILITY: Logging SSN in search
         logger.info("Looking up customer by SSN: " + ssn);
         return customerRepository.findBySsn(ssn);
+    }
+
+    /**
+     * Deactivate a customer account.
+     * ISSUE: No check for active policies or open claims before deactivation
+     */
+    public Customer deactivateCustomer(Long id) {
+        Customer customer = customerRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Customer not found: " + id));
+
+        if ("INACTIVE".equals(customer.getStatus())) {
+            throw new RuntimeException("Customer is already inactive");
+        }
+
+        String oldStatus = customer.getStatus();
+        customer.setStatus("INACTIVE");
+        customer.setUpdatedAt(LocalDateTime.now());
+
+        // VULNERABILITY: Logging PII on status change
+        logger.info("Deactivating customer: " + customer.getFirstName() + " " + customer.getLastName()
+                + " SSN: " + customer.getSsn());
+
+        Customer saved = customerRepository.save(customer);
+        logAudit("CUSTOMER", id, "DEACTIVATED", oldStatus, "INACTIVE");
+        return saved;
+    }
+
+    /**
+     * Delete a customer.
+     * ISSUE: Hard delete, no cascading cleanup of policies/claims
+     * ISSUE: No authorization check
+     */
+    public void deleteCustomer(Long id) {
+        Customer customer = customerRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Customer not found: " + id));
+
+        // VULNERABILITY: Logging full PII on deletion
+        logger.info("Deleting customer: " + customer.toString());
+
+        customerRepository.delete(customer);
+        logAudit("CUSTOMER", id, "DELETED", customer.getStatus(), null);
+    }
+
+    /**
+     * Process an address change for a customer.
+     * ISSUE: No address validation, no notification to underwriting
+     * VULNERABILITY: Logging full address including old and new
+     */
+    public Customer changeAddress(Long id, String street, String city, String state, String zip) {
+        Customer customer = customerRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Customer not found: " + id));
+
+        String oldAddress = customer.getStreet() + ", " + customer.getCity() + ", "
+                + customer.getState() + " " + customer.getZip();
+        String oldZip = customer.getZip();
+        String oldState = customer.getState();
+
+        customer.setStreet(street);
+        customer.setCity(city);
+        customer.setState(state);
+        customer.setZip(zip);
+        customer.setRiskScore(calculateRiskScore(customer));
+        customer.setUpdatedAt(LocalDateTime.now());
+
+        String newAddress = street + ", " + city + ", " + state + " " + zip;
+
+        // VULNERABILITY: Logging full addresses
+        logger.info("Address changed for customer " + id + ": " + oldAddress + " -> " + newAddress);
+
+        Customer saved = customerRepository.save(customer);
+        logAudit("CUSTOMER", id, "ADDRESS_CHANGED", oldAddress, newAddress);
+
+        // Trigger mandatory coverage re-evaluation for FL, CA, TX
+        if ((state != null && policyService.requiresCoverageReview(state)) || (oldState != null && policyService.requiresCoverageReview(oldState))) {
+            List<Policy> activePolicies = policyService.getPoliciesByCustomer(id);
+            for (Policy policy : activePolicies) {
+                if ("ACTIVE".equals(policy.getStatus())) {
+                    try {
+                        policyService.recalculatePremium(policy.getId(), zip, oldZip);
+                        logger.info("Coverage re-evaluated for policy " + policy.getId()
+                                + " due to address change to " + state);
+                    } catch (Exception e) {
+                        // ISSUE: Silently swallowing recalculation errors
+                        logger.error("Failed to recalculate premium for policy " + policy.getId(), e);
+                    }
+                }
+            }
+        }
+
+        return saved;
+    }
+
+    private void logAudit(String entityType, Long entityId, String action, String oldValue, String newValue) {
+        try {
+            AuditLog log = new AuditLog();
+            log.setEntityType(entityType);
+            log.setEntityId(entityId);
+            log.setAction(action);
+            log.setPerformedBy("system");
+            log.setOldValue(oldValue);
+            log.setNewValue(newValue);
+            log.setCreatedAt(LocalDateTime.now());
+            auditLogRepository.save(log);
+        } catch (Exception e) {
+            logger.error("Failed to create audit log", e);
+        }
     }
 
     // ISSUE: Risk score calculation with magic numbers and no documentation

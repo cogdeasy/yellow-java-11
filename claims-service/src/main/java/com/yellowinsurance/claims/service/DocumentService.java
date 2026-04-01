@@ -128,6 +128,14 @@ public class DocumentService {
         return documentRepository.findByClaimId(claimId);
     }
 
+    /**
+     * Get documents by customer ID.
+     * VULNERABILITY: IDOR - no authorization check that requester owns this customer
+     */
+    public List<Document> getDocumentsByCustomerId(Long customerId) {
+        return documentRepository.findByCustomerId(customerId);
+    }
+
     public Optional<Document> getDocumentById(Long id) {
         return documentRepository.findById(id);
     }
