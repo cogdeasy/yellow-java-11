@@ -58,12 +58,19 @@ public class ClaimController {
         try {
             Claim claim = claimService.updateClaimStatus(id, status, notes);
 
-            // Wire notification on claim status change
-            // ISSUE: No error handling if notification fails; no customer email lookup
-            notificationService.sendClaimNotification(
-                    "customer-" + claim.getCustomerId() + "@yellowinsurance.com",
-                    claim.getClaimNumber(),
-                    status);
+            // Wire notification on claim status change (in separate try-catch)
+            // ISSUE: No customer email lookup; uses fabricated email
+            try {
+                notificationService.sendClaimNotification(
+                        "customer-" + claim.getCustomerId() + "@yellowinsurance.com",
+                        claim.getClaimNumber(),
+                        status);
+            } catch (Exception notifEx) {
+                // ISSUE: Notification failure is silently logged, not surfaced to caller
+                // The claim status update already succeeded, so we still return 200
+                System.err.println("WARNING: Notification failed for claim " + claim.getClaimNumber()
+                        + ": " + notifEx.getMessage());
+            }
 
             return ResponseEntity.ok(ApiResponse.ok(claim));
         } catch (Exception e) {

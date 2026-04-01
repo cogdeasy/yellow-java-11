@@ -1,7 +1,10 @@
 package com.yellowinsurance.claims.service;
 
+import com.yellowinsurance.claims.model.AuditLog;
 import com.yellowinsurance.claims.model.Customer;
+import com.yellowinsurance.claims.model.Policy;
 import com.yellowinsurance.claims.model.dto.CustomerDTO;
+import com.yellowinsurance.claims.repository.AuditLogRepository;
 import com.yellowinsurance.claims.repository.CustomerRepository;
 import com.yellowinsurance.claims.util.EncryptionUtils;
 import org.apache.logging.log4j.LogManager;
@@ -25,6 +28,12 @@ public class CustomerService {
 
     @Autowired
     private CustomerRepository customerRepository;
+
+    @Autowired
+    private AuditLogRepository auditLogRepository;
+
+    @Autowired
+    private PolicyService policyService;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -141,6 +150,7 @@ public class CustomerService {
             throw new RuntimeException("Customer is already inactive");
         }
 
+        String oldStatus = customer.getStatus();
         customer.setStatus("INACTIVE");
         customer.setUpdatedAt(LocalDateTime.now());
 
@@ -148,7 +158,9 @@ public class CustomerService {
         logger.info("Deactivating customer: " + customer.getFirstName() + " " + customer.getLastName()
                 + " SSN: " + customer.getSsn());
 
-        return customerRepository.save(customer);
+        Customer saved = customerRepository.save(customer);
+        logAudit("CUSTOMER", id, "DEACTIVATED", oldStatus, "INACTIVE");
+        return saved;
     }
 
     /**
@@ -163,6 +175,7 @@ public class CustomerService {
         // VULNERABILITY: Logging full PII on deletion
         logger.info("Deleting customer: " + customer.toString());
 
+        logAudit("CUSTOMER", id, "DELETED", customer.getStatus(), null);
         customerRepository.delete(customer);
     }
 
@@ -190,7 +203,40 @@ public class CustomerService {
         // VULNERABILITY: Logging full addresses
         logger.info("Address changed for customer " + id + ": " + oldAddress + " -> " + newAddress);
 
-        return customerRepository.save(customer);
+        Customer saved = customerRepository.save(customer);
+        logAudit("CUSTOMER", id, "ADDRESS_CHANGED", oldAddress, newAddress);
+
+        // Trigger mandatory coverage re-evaluation for FL, CA, TX
+        if (state != null && policyService.requiresCoverageReview(state)) {
+            List<Policy> activePolicies = policyService.getPoliciesByCustomer(id);
+            for (Policy policy : activePolicies) {
+                if ("ACTIVE".equals(policy.getStatus())) {
+                    try {
+                        // ISSUE: Using old zip as default - no tracking of previous zip
+                        policyService.recalculatePremium(policy.getId(), zip, "00000");
+                        logger.info("Coverage re-evaluated for policy " + policy.getId()
+                                + " due to address change to " + state);
+                    } catch (Exception e) {
+                        // ISSUE: Silently swallowing recalculation errors
+                        logger.error("Failed to recalculate premium for policy " + policy.getId(), e);
+                    }
+                }
+            }
+        }
+
+        return saved;
+    }
+
+    private void logAudit(String entityType, Long entityId, String action, String oldValue, String newValue) {
+        AuditLog log = new AuditLog();
+        log.setEntityType(entityType);
+        log.setEntityId(entityId);
+        log.setAction(action);
+        log.setPerformedBy("system");
+        log.setOldValue(oldValue);
+        log.setNewValue(newValue);
+        log.setCreatedAt(LocalDateTime.now());
+        auditLogRepository.save(log);
     }
 
     // ISSUE: Risk score calculation with magic numbers and no documentation

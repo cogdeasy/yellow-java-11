@@ -1,6 +1,8 @@
 package com.yellowinsurance.claims.service;
 
+import com.yellowinsurance.claims.model.AuditLog;
 import com.yellowinsurance.claims.model.Policy;
+import com.yellowinsurance.claims.repository.AuditLogRepository;
 import com.yellowinsurance.claims.repository.PolicyRepository;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -20,6 +22,9 @@ public class PolicyService {
 
     @Autowired
     private PolicyRepository policyRepository;
+
+    @Autowired
+    private AuditLogRepository auditLogRepository;
 
     // ISSUE: Hardcoded risk factors - should be in database or config
     private static final Map<String, Double> ZIP_RISK_FACTORS = new HashMap<>();
@@ -136,7 +141,9 @@ public class PolicyService {
         policy.setUpdatedAt(LocalDateTime.now());
 
         logger.info("Policy " + id + " updated");
-        return policyRepository.save(policy);
+        Policy saved = policyRepository.save(policy);
+        logAudit("POLICY", id, "UPDATED", "multiple fields", "updated");
+        return saved;
     }
 
     /**
@@ -158,7 +165,9 @@ public class PolicyService {
         policy.setUpdatedAt(LocalDateTime.now());
 
         logger.info("Policy " + id + " cancelled. Reason: " + reason + " (was " + oldStatus + ")");
-        return policyRepository.save(policy);
+        Policy saved = policyRepository.save(policy);
+        logAudit("POLICY", id, "CANCELLED", oldStatus, "CANCELLED");
+        return saved;
     }
 
     /**
@@ -188,8 +197,23 @@ public class PolicyService {
         policy.setStatus("ACTIVE");
         policy.setUpdatedAt(LocalDateTime.now());
 
+        String oldPremiumStr = String.valueOf(currentPremium);
         logger.info("Policy " + id + " renewed. New premium: " + newPremium);
-        return policyRepository.save(policy);
+        Policy saved = policyRepository.save(policy);
+        logAudit("POLICY", id, "RENEWED", oldPremiumStr, String.valueOf(newPremium));
+        return saved;
+    }
+
+    private void logAudit(String entityType, Long entityId, String action, String oldValue, String newValue) {
+        AuditLog log = new AuditLog();
+        log.setEntityType(entityType);
+        log.setEntityId(entityId);
+        log.setAction(action);
+        log.setPerformedBy("system");
+        log.setOldValue(oldValue);
+        log.setNewValue(newValue);
+        log.setCreatedAt(LocalDateTime.now());
+        auditLogRepository.save(log);
     }
 
     private String generatePolicyNumber(String type) {
