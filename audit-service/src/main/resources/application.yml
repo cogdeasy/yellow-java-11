@@ -1,0 +1,36 @@
+server:
+  port: 3003
+
+spring:
+  application:
+    name: audit-service
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/liberty_mutual}
+    username: ${POSTGRES_USER:liberty_dev}
+    password: ${POSTGRES_PASSWORD:liberty_dev}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+    serialization:
+      write-dates-as-timestamps: false
+
+app:
+  customer-service-url: ${CUSTOMER_SERVICE_URL:http://localhost:3001}
+  policy-service-url: ${POLICY_SERVICE_URL:http://localhost:3002}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

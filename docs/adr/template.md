@@ -33,7 +33,13 @@ What is the change that we're proposing and/or doing?
 - [ ] GDPR (if applicable)
 
 ## Agent Decision Log (TRiSM)
-- **Requirement_ID**: REQ-XXX-NNN
-- **Agent Role**: architect | developer | security-analyst
-- **Reasoning**: Why this decision was made
-- **Confidence**: HIGH | MEDIUM | LOW
+| Field | Value |
+|-------|-------|
+| Requirement_ID | REQ-{DOMAIN}-{NNN} |
+| Agent Role | architect \| developer \| security-analyst |
+| Reasoning | Why this decision was made |
+| Alternatives Considered | What else was evaluated |
+| Risk Assessment | What could go wrong |
+| Confidence | HIGH \| MEDIUM \| LOW |
+| Human Reviewer | {reviewer-name} |
+| Approval Date | YYYY-MM-DD |

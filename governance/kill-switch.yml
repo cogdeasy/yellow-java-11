@@ -1,0 +1,58 @@
+# Kill Switch Configuration
+# Emergency controls for the Liberty Mutual Insurance Platform
+# ADR-0003: Audit trail and operational safety
+
+kill_switches:
+  # Master kill switch — disables all non-read operations
+  master:
+    enabled: false
+    description: "Emergency stop for all write operations across all services"
+    affects:
+      - customer-service
+      - policy-service
+      - audit-service
+    operations_blocked:
+      - CREATE
+      - UPDATE
+      - DELETE
+
+  # Premium recalculation kill switch
+  premium_recalculation:
+    enabled: false
+    description: "Disable automatic premium recalculation on address changes"
+    affects:
+      - policy-service
+    operations_blocked:
+      - RECALCULATE_PREMIUM
+    fallback: "Flag policies for manual review"
+
+  # Audit event emission kill switch
+  audit_emission:
+    enabled: false
+    description: "Disable audit event emission (use only in extreme cases)"
+    affects:
+      - customer-service
+      - policy-service
+    operations_blocked:
+      - EMIT_AUDIT_EVENT
+    warning: "Disabling audit emission violates compliance requirements"
+
+  # Coverage re-evaluation kill switch
+  coverage_reevaluation:
+    enabled: false
+    description: "Disable automatic coverage re-evaluation triggers"
+    affects:
+      - customer-service
+      - policy-service
+    operations_blocked:
+      - COVERAGE_REEVALUATION
+    fallback: "All coverage changes routed to manual review queue"
+
+activation_protocol:
+  1: "Identify the issue and affected service(s)"
+  2: "Notify the on-call engineer and team lead"
+  3: "Activate the appropriate kill switch"
+  4: "Monitor service health and audit logs"
+  5: "Investigate root cause"
+  6: "Deactivate kill switch only after resolution is verified"
+  7: "Post-incident review within 48 hours"
