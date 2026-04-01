@@ -115,6 +115,83 @@ public class PolicyService {
         return MANDATORY_REVIEW_STATES.contains(state.toUpperCase());
     }
 
+    /**
+     * Update a policy.
+     * ISSUE: No audit trail for policy changes
+     * ISSUE: Accepts entity directly - mass assignment vulnerability
+     */
+    public Policy updatePolicy(Long id, Policy updates) {
+        Policy policy = policyRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Policy not found: " + id));
+
+        if (updates.getPolicyType() != null) policy.setPolicyType(updates.getPolicyType());
+        if (updates.getCoverageAmount() != null) policy.setCoverageAmount(updates.getCoverageAmount());
+        if (updates.getPremium() != null) policy.setPremium(updates.getPremium());
+        if (updates.getDeductible() != null) policy.setDeductible(updates.getDeductible());
+        if (updates.getStartDate() != null) policy.setStartDate(updates.getStartDate());
+        if (updates.getEndDate() != null) policy.setEndDate(updates.getEndDate());
+        if (updates.getRiskCategory() != null) policy.setRiskCategory(updates.getRiskCategory());
+        if (updates.getUnderwriter() != null) policy.setUnderwriter(updates.getUnderwriter());
+
+        policy.setUpdatedAt(LocalDateTime.now());
+
+        logger.info("Policy " + id + " updated");
+        return policyRepository.save(policy);
+    }
+
+    /**
+     * Cancel a policy.
+     * ISSUE: No check for open claims on the policy
+     * ISSUE: No refund calculation for remaining term
+     */
+    public Policy cancelPolicy(Long id, String reason) {
+        Policy policy = policyRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Policy not found: " + id));
+
+        if ("CANCELLED".equals(policy.getStatus())) {
+            throw new RuntimeException("Policy is already cancelled");
+        }
+
+        String oldStatus = policy.getStatus();
+        policy.setStatus("CANCELLED");
+        policy.setEndDate(LocalDate.now());
+        policy.setUpdatedAt(LocalDateTime.now());
+
+        logger.info("Policy " + id + " cancelled. Reason: " + reason + " (was " + oldStatus + ")");
+        return policyRepository.save(policy);
+    }
+
+    /**
+     * Renew a policy for another year.
+     * ISSUE: No premium adjustment for renewal
+     * ISSUE: No check for outstanding claims or payment status
+     * ISSUE: Floating-point arithmetic for premium increase
+     */
+    public Policy renewPolicy(Long id) {
+        Policy policy = policyRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Policy not found: " + id));
+
+        if (!"ACTIVE".equals(policy.getStatus()) && !"EXPIRED".equals(policy.getStatus())) {
+            throw new RuntimeException("Only ACTIVE or EXPIRED policies can be renewed");
+        }
+
+        // ISSUE: Hardcoded 3% increase, floating-point arithmetic for money
+        double currentPremium = policy.getPremium().doubleValue();
+        double newPremium = currentPremium * 1.03;
+        policy.setPremium(BigDecimal.valueOf(newPremium).setScale(2, RoundingMode.HALF_UP));
+
+        // Extend by one year from end date or today, whichever is later
+        LocalDate newStart = policy.getEndDate() != null && policy.getEndDate().isAfter(LocalDate.now())
+                ? policy.getEndDate() : LocalDate.now();
+        policy.setStartDate(newStart);
+        policy.setEndDate(newStart.plusYears(1));
+        policy.setStatus("ACTIVE");
+        policy.setUpdatedAt(LocalDateTime.now());
+
+        logger.info("Policy " + id + " renewed. New premium: " + newPremium);
+        return policyRepository.save(policy);
+    }
+
     private String generatePolicyNumber(String type) {
         // ISSUE: Weak random, predictable policy numbers
         Random random = new Random();

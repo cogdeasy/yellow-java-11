@@ -17,6 +17,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -296,5 +297,106 @@ public class ClaimService {
         claimCache.clear();
         cacheHits = 0;
         cacheMisses = 0;
+    }
+
+    /**
+     * Delete a claim by ID.
+     * ISSUE: No soft-delete, no authorization check, no cascading cleanup of documents
+     */
+    public void deleteClaim(Long id) {
+        Claim claim = claimRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Claim not found: " + id));
+
+        // VULNERABILITY: Logging claim details including potentially sensitive adjuster notes
+        logger.info("Deleting claim: " + claim.getClaimNumber() + " with notes: " + claim.getAdjusterNotes());
+
+        logAudit("CLAIM", id, "DELETED", claim.getStatus(), null);
+        claimCache.remove("claim_" + id);
+        claimRepository.delete(claim);
+    }
+
+    /**
+     * Assign or reassign an adjuster to a claim.
+     * ISSUE: No validation that the adjuster exists or is available
+     */
+    public Claim assignAdjuster(Long claimId, String adjusterName) {
+        Claim claim = claimRepository.findById(claimId)
+                .orElseThrow(() -> new RuntimeException("Claim not found: " + claimId));
+
+        String oldAdjuster = claim.getAssignedAdjuster();
+        claim.setAssignedAdjuster(adjusterName);
+        claim.setUpdatedAt(LocalDateTime.now());
+
+        // ISSUE: If claim was auto-approved, assigning adjuster doesn't change status
+        if ("OPEN".equals(claim.getStatus())) {
+            claim.setStatus("UNDER_REVIEW");
+        }
+
+        logger.info("Claim " + claimId + " assigned to adjuster: " + adjusterName);
+
+        Claim saved = claimRepository.save(claim);
+        logAudit("CLAIM", claimId, "ADJUSTER_ASSIGNED", oldAdjuster, adjusterName);
+        claimCache.remove("claim_" + claimId);
+
+        return saved;
+    }
+
+    public List<Claim> getClaimsByPolicy(Long policyId) {
+        return claimRepository.findByPolicyId(policyId);
+    }
+
+    public List<Claim> getClaimsByCustomer(Long customerId) {
+        return claimRepository.findByCustomerId(customerId);
+    }
+
+    /**
+     * Get claim history/timeline from audit logs.
+     * ISSUE: Returns raw audit logs rather than a proper timeline DTO
+     */
+    public List<AuditLog> getClaimHistory(Long claimId) {
+        // ISSUE: No check whether the claim exists before querying logs
+        return auditLogRepository.findByEntityTypeAndEntityId("CLAIM", claimId);
+    }
+
+    /**
+     * Batch process claims - mark as UNDER_REVIEW and assign default adjuster.
+     * ISSUE: No transactional boundary, partial failures silently swallowed
+     * ISSUE: No limit on batch size - could process thousands in one request
+     */
+    public Map<String, Object> processBatch(List<Long> claimIds) {
+        int processed = 0;
+        int failed = 0;
+        List<String> errors = new ArrayList<>();
+
+        for (Long id : claimIds) {
+            try {
+                Claim claim = claimRepository.findById(id).orElse(null);
+                if (claim != null && "OPEN".equals(claim.getStatus())) {
+                    claim.setStatus("UNDER_REVIEW");
+                    claim.setAssignedAdjuster("batch-processor");
+                    claim.setUpdatedAt(LocalDateTime.now());
+                    claimRepository.save(claim);
+                    logAudit("CLAIM", id, "BATCH_PROCESSED", "OPEN", "UNDER_REVIEW");
+                    processed++;
+                } else if (claim == null) {
+                    errors.add("Claim " + id + " not found");
+                    failed++;
+                } else {
+                    errors.add("Claim " + id + " not in OPEN status");
+                    failed++;
+                }
+            } catch (Exception e) {
+                // ISSUE: Swallowing exceptions silently
+                errors.add("Claim " + id + ": " + e.getMessage());
+                failed++;
+            }
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("processed", processed);
+        result.put("failed", failed);
+        result.put("errors", errors);
+        result.put("total", claimIds.size());
+        return result;
     }
 }

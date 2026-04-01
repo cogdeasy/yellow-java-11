@@ -129,6 +129,70 @@ public class CustomerService {
         return customerRepository.findBySsn(ssn);
     }
 
+    /**
+     * Deactivate a customer account.
+     * ISSUE: No check for active policies or open claims before deactivation
+     */
+    public Customer deactivateCustomer(Long id) {
+        Customer customer = customerRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Customer not found: " + id));
+
+        if ("INACTIVE".equals(customer.getStatus())) {
+            throw new RuntimeException("Customer is already inactive");
+        }
+
+        customer.setStatus("INACTIVE");
+        customer.setUpdatedAt(LocalDateTime.now());
+
+        // VULNERABILITY: Logging PII on status change
+        logger.info("Deactivating customer: " + customer.getFirstName() + " " + customer.getLastName()
+                + " SSN: " + customer.getSsn());
+
+        return customerRepository.save(customer);
+    }
+
+    /**
+     * Delete a customer.
+     * ISSUE: Hard delete, no cascading cleanup of policies/claims
+     * ISSUE: No authorization check
+     */
+    public void deleteCustomer(Long id) {
+        Customer customer = customerRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Customer not found: " + id));
+
+        // VULNERABILITY: Logging full PII on deletion
+        logger.info("Deleting customer: " + customer.toString());
+
+        customerRepository.delete(customer);
+    }
+
+    /**
+     * Process an address change for a customer.
+     * ISSUE: No address validation, no notification to underwriting
+     * VULNERABILITY: Logging full address including old and new
+     */
+    public Customer changeAddress(Long id, String street, String city, String state, String zip) {
+        Customer customer = customerRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Customer not found: " + id));
+
+        String oldAddress = customer.getStreet() + ", " + customer.getCity() + ", "
+                + customer.getState() + " " + customer.getZip();
+
+        customer.setStreet(street);
+        customer.setCity(city);
+        customer.setState(state);
+        customer.setZip(zip);
+        customer.setRiskScore(calculateRiskScore(customer));
+        customer.setUpdatedAt(LocalDateTime.now());
+
+        String newAddress = street + ", " + city + ", " + state + " " + zip;
+
+        // VULNERABILITY: Logging full addresses
+        logger.info("Address changed for customer " + id + ": " + oldAddress + " -> " + newAddress);
+
+        return customerRepository.save(customer);
+    }
+
     // ISSUE: Risk score calculation with magic numbers and no documentation
     private int calculateRiskScore(Customer customer) {
         int score = 50; // base score
