@@ -1,82 +1,59 @@
-@phase-1-approved @customers
-Feature: Customer (Policyholder) Management
-  As an insurance agent
-  I want to manage customer profiles securely
-  So that policyholder data is accurate and protected
+Feature: Customer Management
+  As a Liberty Mutual insurance platform
+  I need to manage policyholder records
+  So that customer data is accurate and auditable
 
   Background:
-    Given the claims management system is running
-    And the user is authenticated with valid credentials
+    Given the customer-service is running on port 3001
+    And the database contains the standard schema
 
-  # Requirement_ID: REQ-CUST-001
-  @happy-path
-  Scenario: Create a new customer profile
-    When I create a customer with:
-      | field       | value              |
-      | firstName   | Sarah              |
-      | lastName    | Connor             |
-      | email       | sarah@email.com    |
-      | phone       | 555-0199           |
-      | ssn         | 111-22-3333        |
-      | dateOfBirth | 1985-05-15         |
-      | street      | 100 Main St        |
-      | city        | Miami              |
-      | state       | FL                 |
-      | zip         | 33101              |
-      | password    | SecureP@ss1        |
-    Then the customer should be created with status "ACTIVE"
-    And a risk score should be calculated based on location and age
+  Scenario: Create a new customer
+    When I POST to "/api/v1/customers" with:
+      | first_name | last_name | email              | phone    | street       | city   | state | zip   |
+      | John       | Doe       | john@example.com   | 555-0100 | 123 Main St  | Boston | MA    | 02101 |
+    Then the response status should be 201
+    And the response should contain "id"
+    And the response "status" should be "active"
+    And an audit event "customer.created" should be emitted
 
-  # Requirement_ID: REQ-CUST-002
-  @security @pii
-  Scenario: SSN must be encrypted at rest
-    Given a customer is created with SSN "111-22-3333"
-    When I query the database directly
-    Then the SSN column should contain an encrypted value, not plaintext
-    And the SSN should only be decryptable with the application's encryption key
+  Scenario: List customers with no filters
+    Given the database contains 5 customers
+    When I GET "/api/v1/customers"
+    Then the response status should be 200
+    And the response "total" should be 5
 
-  # Requirement_ID: REQ-CUST-003
-  @security @pii
-  Scenario: SSN must not appear in application logs
-    Given a customer is created with SSN "111-22-3333"
-    When I review the application log files
-    Then no log entry should contain the full SSN "111-22-3333"
-    And SSN references in logs should be masked (e.g., "***-**-3333")
+  Scenario: List customers filtered by state
+    Given the database contains customers in states "MA", "FL", "CA"
+    When I GET "/api/v1/customers?state=FL"
+    Then the response status should be 200
+    And all returned customers should have state "FL"
 
-  # Requirement_ID: REQ-CUST-004
-  @security @password
-  Scenario: Passwords must be hashed with bcrypt
-    Given a customer is created with password "SecureP@ss1"
-    When I query the password_hash column
-    Then the hash should start with "$2a$" or "$2b$" (bcrypt prefix)
-    And the hash should NOT be an MD5 hex string
+  Scenario: Retrieve a customer by ID
+    Given a customer exists with ID "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"
+    When I GET "/api/v1/customers/a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"
+    Then the response status should be 200
+    And the response "first_name" should be "John"
 
-  # Requirement_ID: REQ-CUST-005
-  @security @sql-injection
-  Scenario: Prevent SQL injection in customer search
-    When I search customers with name "' OR 1=1 --"
-    Then the search should return safely with no results
-    And no unauthorized data should be exposed
+  Scenario: Retrieve a non-existent customer
+    When I GET "/api/v1/customers/00000000-0000-0000-0000-000000000000"
+    Then the response status should be 404
+    And the response "error" should be "not_found"
 
-  # Requirement_ID: REQ-CUST-006
-  @security @idor
-  Scenario: SSN lookup requires admin authorization
-    Given I am authenticated as "viewer" with role "USER"
-    When I try to look up a customer by SSN
-    Then I should receive a 403 Forbidden response
-    And only users with "ADMIN" role should be able to perform SSN lookups
+  Scenario: Change customer address (same state)
+    Given a customer exists in state "MA" with zip "02101"
+    When I PATCH "/api/v1/customers/{id}/address" with:
+      | street      | city      | state | zip   |
+      | 456 Oak Ave | Cambridge | MA    | 02102 |
+    Then the response status should be 200
+    And the customer address should be updated
+    And an audit event "customer.address_changed" should be emitted
+    And "coverage_reevaluation.triggered" should be false
 
-  # Requirement_ID: REQ-CUST-007
-  @security @api
-  Scenario: Customer API must not expose SSN or password hash
-    When I GET /api/v1/customers/1
-    Then the response should NOT include the "ssn" field
-    And the response should NOT include the "passwordHash" field
-    And sensitive fields should be excluded from all customer API responses
-
-  # Requirement_ID: REQ-CUST-008
-  @happy-path @premium-calc
-  Scenario: Risk score calculation for high-risk states
-    When I create a customer in state "FL"
-    Then the risk score should be higher than a customer in state "CO"
-    And the risk score should factor in hurricane zone risk for Florida
+  Scenario: Change customer address to Florida (mandatory review)
+    Given a customer exists in state "MA" with zip "02101"
+    When I PATCH "/api/v1/customers/{id}/address" with:
+      | street         | city  | state | zip   |
+      | 789 Beach Blvd | Miami | FL    | 33101 |
+    Then the response status should be 200
+    And "coverage_reevaluation.triggered" should be true
+    And "coverage_reevaluation.state" should be "FL"

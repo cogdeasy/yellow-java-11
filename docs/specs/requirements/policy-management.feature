@@ -1,60 +1,57 @@
-@phase-1-approved @policies
-Feature: Policy Management and Premium Calculation
-  As an underwriter
-  I want to manage insurance policies and recalculate premiums
-  So that premiums accurately reflect location-based risk
+Feature: Policy Management
+  As a Liberty Mutual insurance platform
+  I need to manage insurance policies and calculate premiums
+  So that policies reflect accurate risk-based pricing
 
   Background:
-    Given the claims management system is running
-    And the user is authenticated with valid credentials
-    And ZIP risk factors are configured for known ZIP codes
+    Given the policy-service is running on port 3002
+    And the database contains the standard schema
 
-  # Requirement_ID: REQ-POL-001
-  @happy-path @premium-calc
-  Scenario: Recalculate premium after address change
-    Given customer 1 has policy "HOME-2024-0001" with premium $2450.00
-    And the current ZIP code is "33101" (Miami, FL) with risk factor 1.45
-    When the customer moves to ZIP code "80201" (Denver, CO) with risk factor 1.05
-    Then the premium should be recalculated using the new risk factor
-    And the new premium should be lower than the original
-    And the change should be recorded with old and new premium values
+  Scenario: Create a policy with known ZIP code
+    When I POST to "/api/v1/policies" with:
+      | customer_id                          | type | coverage_amount | zip_code |
+      | a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d | home | 500000          | 33101    |
+    Then the response status should be 201
+    And the response "premium_annual" should be 8750.00
+    And an audit event "policy.created" should be emitted
 
-  # Requirement_ID: REQ-POL-002
-  @happy-path @coverage-check
-  Scenario: Mandatory coverage re-evaluation for FL/CA/TX
-    Given a customer moves to state "FL"
-    When the address change is processed
-    Then the system should flag mandatory coverage re-evaluation
-    And the review should be triggered for hurricane zone coverage
+  Scenario: Create a policy with unknown ZIP code
+    When I POST to "/api/v1/policies" with:
+      | customer_id                          | type | coverage_amount | zip_code |
+      | a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d | auto | 300000          | 99999    |
+    Then the response status should be 201
+    And the response "premium_annual" should be 3000.00
 
-  # Requirement_ID: REQ-POL-003
-  @compliance @audit
-  Scenario: Premium changes must have audit trail
-    Given an existing policy with a known premium
-    When the premium is recalculated
-    Then an audit log entry should record the old premium and new premium
-    And the audit log should identify who triggered the recalculation
-    And the audit log should record the timestamp
+  Scenario: Recalculate premium for address change to high-risk area
+    Given a policy exists with coverage 500000 and zip "02101"
+    When I POST to "/api/v1/policies/{id}/recalculate" with:
+      | new_zipcode | old_zipcode |
+      | 33101       | 02101       |
+    Then the response status should be 200
+    And the "new_premium" should be 8750.00
+    And an audit event "policy.premium_recalculated" should be emitted
 
-  # Requirement_ID: REQ-POL-004
-  @code-quality @money
-  Scenario: Premium calculations use proper decimal arithmetic
-    Given a policy with premium $2450.00
-    When the premium is recalculated multiple times
-    Then all intermediate and final values should use BigDecimal
-    And no floating-point arithmetic should be used for money
-    And the result should be rounded to 2 decimal places using HALF_UP
+  Scenario: Recalculate premium for unknown ZIP code
+    Given a policy exists with coverage 500000 and zip "02101"
+    When I POST to "/api/v1/policies/{id}/recalculate" with:
+      | new_zipcode | old_zipcode |
+      | 99999       | 02101       |
+    Then the response status should be 200
+    And the "status" should be "pending_review"
 
-  # Requirement_ID: REQ-POL-005
-  @happy-path
-  Scenario: Look up ZIP code risk factors
-    When I query the risk factor for ZIP code "33101"
-    Then I should receive risk factor 1.45
-    And the response should indicate it is a known ZIP code
+  Scenario: Query ZIP risk data
+    When I GET "/api/v1/zip-risk/33101"
+    Then the response status should be 200
+    And the "state" should be "FL"
+    And the "flood_zone" should be true
+    And the "base_modifier" should be 1.75
 
-  # Requirement_ID: REQ-POL-006
-  @error
-  Scenario: Handle unknown ZIP codes gracefully
-    When I query the risk factor for ZIP code "99999"
-    Then I should receive the default risk factor of 1.0
-    And the response should indicate it is NOT a known ZIP code
+  Scenario: Query unknown ZIP risk data
+    When I GET "/api/v1/zip-risk/99999"
+    Then the response status should be 404
+
+  Scenario: List policies by customer
+    Given customer has 2 active policies
+    When I GET "/api/v1/policies?customer_id={customer_id}"
+    Then the response status should be 200
+    And the response "total" should be 2

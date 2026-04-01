@@ -1,492 +1,665 @@
 openapi: 3.0.3
 info:
-  title: Yellow Insurance Claims Management API
-  description: |
-    REST API for managing insurance claims, customers, policies, and documents.
-    This API serves the Yellow Insurance Claims Management System (Java 11).
+  title: Liberty Mutual Insurance Platform API — Java 11 Edition
+  description: >
+    Spec-Driven Development demo — Insurance platform with policyholder records,
+    policy management, premium recalculation, and compliance audit trail.
+    Implemented in Java 11 with Spring Boot 2.7.x.
   version: 1.0.0
   contact:
-    name: Yellow Insurance Engineering
-    email: engineering@yellowinsurance.com
+    name: Engineering Team
 
 servers:
-  - url: http://localhost:8080
-    description: Local development server
-
-security:
-  - basicAuth: []
+  - url: http://localhost:3001
+    description: Customer Service (Policyholder Records)
+  - url: http://localhost:3002
+    description: Policy Service (Policy Platform)
+  - url: http://localhost:3003
+    description: Audit Service (Compliance Data Store)
 
 paths:
-  /api/v1/claims:
-    get:
-      summary: List all claims
-      tags: [Claims]
-      responses:
-        '200':
-          description: List of claims
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ClaimListResponse'
-    post:
-      summary: Create a new claim
-      tags: [Claims]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ClaimDTO'
-      responses:
-        '201':
-          description: Claim created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ClaimResponse'
-
-  /api/v1/claims/{id}:
-    get:
-      summary: Get claim by ID
-      tags: [Claims]
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-      responses:
-        '200':
-          description: Claim details
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ClaimResponse'
-        '404':
-          description: Claim not found
-
-  /api/v1/claims/{id}/status:
-    patch:
-      summary: Update claim status
-      tags: [Claims]
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: status
-          in: query
-          required: true
-          schema:
-            type: string
-            enum: [OPEN, UNDER_REVIEW, APPROVED, DENIED, CLOSED]
-        - name: notes
-          in: query
-          required: false
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Status updated
-
-  /api/v1/claims/search:
-    get:
-      summary: Search claims
-      tags: [Claims]
-      parameters:
-        - name: q
-          in: query
-          required: false
-          schema:
-            type: string
-        - name: status
-          in: query
-          required: false
-          schema:
-            type: string
-        - name: sortBy
-          in: query
-          required: false
-          schema:
-            type: string
-        - name: sortOrder
-          in: query
-          required: false
-          schema:
-            type: string
-            enum: [ASC, DESC]
-      responses:
-        '200':
-          description: Search results
-
-  /api/v1/claims/statistics:
-    get:
-      summary: Get claim statistics
-      tags: [Claims]
-      responses:
-        '200':
-          description: Claim statistics
-
+  # ── Customer Service (port 3001) ──────────────────────────────
   /api/v1/customers:
     get:
-      summary: List all customers
-      tags: [Customers]
-      responses:
-        '200':
-          description: List of customers
-    post:
-      summary: Create a new customer
-      tags: [Customers]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CustomerDTO'
-      responses:
-        '201':
-          description: Customer created
-
-  /api/v1/customers/{id}:
-    get:
-      summary: Get customer by ID
-      tags: [Customers]
+      summary: List policyholder profiles
+      tags: [Customer Service]
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-      responses:
-        '200':
-          description: Customer details
-        '404':
-          description: Customer not found
-    put:
-      summary: Update customer
-      tags: [Customers]
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CustomerDTO'
-      responses:
-        '200':
-          description: Customer updated
-
-  /api/v1/customers/search:
-    get:
-      summary: Search customers
-      tags: [Customers]
-      parameters:
-        - name: name
+        - name: status
           in: query
           schema:
             type: string
-        - name: email
-          in: query
-          schema:
-            type: string
+            enum: [active, inactive]
         - name: state
           in: query
           schema:
             type: string
-      responses:
-        '200':
-          description: Search results
-
-  /api/v1/policies:
-    get:
-      summary: List policies
-      tags: [Policies]
-      parameters:
-        - name: customerId
+        - name: city
           in: query
-          required: false
           schema:
-            type: integer
-            format: int64
+            type: string
       responses:
         '200':
-          description: List of policies
+          description: List of customers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Customer'
+                  total:
+                    type: integer
     post:
-      summary: Create a new policy
-      tags: [Policies]
+      summary: Create a new policyholder profile
+      tags: [Customer Service]
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Policy'
+              $ref: '#/components/schemas/CreateCustomerRequest'
       responses:
         '201':
-          description: Policy created
+          description: Customer created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
-  /api/v1/policies/{id}/recalculate:
-    post:
-      summary: Recalculate premium based on new ZIP code
-      tags: [Policies]
+  /api/v1/customers/{id}:
+    get:
+      summary: Get policyholder by ID
+      tags: [Customer Service]
       parameters:
         - name: id
           in: path
           required: true
           schema:
-            type: integer
-            format: int64
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Customer details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+        '404':
+          description: Customer not found
+
+  /api/v1/customers/{id}/address:
+    patch:
+      summary: Change policyholder home address
+      tags: [Customer Service]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddressChangeRequest'
+      responses:
+        '200':
+          description: Address updated, premium recalculation triggered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddressChangeResponse'
+        '400':
+          description: Validation error
+        '404':
+          description: Customer not found
+
+  # ── Policy Service (port 3002) ────────────────────────────────
+  /api/v1/policies:
+    get:
+      summary: List policies
+      tags: [Policy Service]
+      parameters:
+        - name: customer_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [home, auto, life, umbrella]
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive, pending_review]
+      responses:
+        '200':
+          description: List of policies
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Policy'
+                  total:
+                    type: integer
+    post:
+      summary: Create a new policy
+      tags: [Policy Service]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePolicyRequest'
+      responses:
+        '201':
+          description: Policy created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Policy'
+        '400':
+          description: Validation error
+
+  /api/v1/policies/{id}:
+    get:
+      summary: Get policy by ID
+      tags: [Policy Service]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Policy details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Policy'
+        '404':
+          description: Policy not found
+
+  /api/v1/policies/{id}/recalculate:
+    post:
+      summary: Recalculate premium for address change
+      tags: [Policy Service]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
+              required: [new_zipcode]
               properties:
                 new_zipcode:
                   type: string
+                  pattern: '^\d{5}$'
                 old_zipcode:
                   type: string
+                  pattern: '^\d{5}$'
       responses:
         '200':
-          description: Premium recalculation result
+          description: Premium recalculated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecalculationResult'
+        '404':
+          description: Policy not found
 
-  /api/v1/policies/zip-risk/{zipcode}:
+  /api/v1/zip-risk/{zipcode}:
     get:
-      summary: Get ZIP code risk factors
-      tags: [Policies]
+      summary: Get risk factors for a ZIP code
+      tags: [Policy Service]
       parameters:
         - name: zipcode
           in: path
           required: true
           schema:
             type: string
+            pattern: '^\d{5}$'
       responses:
         '200':
-          description: Risk factor data
+          description: Risk factors for the ZIP code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ZipRiskFactors'
+        '404':
+          description: ZIP code not found
 
-  /api/v1/documents/upload:
-    post:
-      summary: Upload a document
-      tags: [Documents]
-      requestBody:
-        required: true
-        content:
-          multipart/form-data:
-            schema:
-              type: object
-              properties:
-                claimId:
-                  type: integer
-                  format: int64
-                customerId:
-                  type: integer
-                  format: int64
-                file:
-                  type: string
-                  format: binary
-                uploadedBy:
-                  type: string
-      responses:
-        '201':
-          description: Document uploaded
-
-  /api/v1/documents/{id}/download:
+  # ── Audit Service (port 3003) ─────────────────────────────────
+  /api/v2/audit-trail:
     get:
-      summary: Download a document
-      tags: [Documents]
+      summary: Aggregated audit trail with cross-service enrichment
+      tags: [Audit Service]
       parameters:
+        - name: entity_type
+          in: query
+          schema:
+            type: string
+            enum: [customer, policy]
+        - name: entity_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: source
+          in: query
+          schema:
+            type: string
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Aggregated audit trail
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AuditEvent'
+                  total:
+                    type: integer
+
+  /api/v2/audit-trail/{type}/{id}:
+    get:
+      summary: Audit trail for a specific entity
+      tags: [Audit Service]
+      parameters:
+        - name: type
+          in: path
+          required: true
+          schema:
+            type: string
         - name: id
           in: path
           required: true
           schema:
-            type: integer
-            format: int64
-      responses:
-        '200':
-          description: File content
-          content:
-            application/octet-stream:
-              schema:
-                type: string
-                format: binary
-
-  /api/v1/admin/health:
-    get:
-      summary: Health check
-      tags: [Admin]
-      security: []
-      responses:
-        '200':
-          description: Application health status
-
-  /api/v1/admin/audit-logs:
-    get:
-      summary: Get audit logs
-      tags: [Admin]
-      parameters:
-        - name: entityType
-          in: query
-          required: false
-          schema:
             type: string
-        - name: entityId
-          in: query
-          required: false
-          schema:
-            type: integer
-            format: int64
+            format: uuid
       responses:
         '200':
-          description: Audit log entries
+          description: Entity audit trail
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AuditEvent'
+
+  /api/v2/audit-trail/summary/stats:
+    get:
+      summary: Audit trail summary statistics
+      tags: [Audit Service]
+      responses:
+        '200':
+          description: Audit statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditStats'
+
+  /api/v2/audit-events:
+    post:
+      summary: Ingest audit event (CloudEvents v1.0)
+      tags: [Audit Service]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CloudEvent'
+      responses:
+        '201':
+          description: Event ingested
+        '400':
+          description: Invalid CloudEvents payload
+
+  # ── Health Checks (Spring Boot Actuator) ─────────────────────
+  /actuator/health:
+    get:
+      summary: Health check (Spring Boot Actuator — all services)
+      tags: [Health]
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [UP]
 
 components:
-  securitySchemes:
-    basicAuth:
-      type: http
-      scheme: basic
-
   schemas:
-    ClaimDTO:
+    Address:
       type: object
+      required: [street, city, state, zip]
       properties:
-        policyId:
-          type: integer
-          format: int64
-        customerId:
-          type: integer
-          format: int64
-        claimType:
-          type: string
-          enum: [WATER_DAMAGE, WILDFIRE, COLLISION, WIND_DAMAGE, FLOOD, THEFT, MOLD]
-        description:
-          type: string
-          maxLength: 4000
-        amountClaimed:
-          type: number
-          format: decimal
-        incidentDate:
-          type: string
-          format: date-time
-
-    CustomerDTO:
-      type: object
-      required: [firstName, lastName, email]
-      properties:
-        firstName:
-          type: string
-          maxLength: 100
-        lastName:
-          type: string
-          maxLength: 100
-        email:
-          type: string
-          format: email
-        phone:
-          type: string
-        dateOfBirth:
-          type: string
-          format: date
         street:
           type: string
         city:
           type: string
         state:
           type: string
+          minLength: 2
           maxLength: 2
         zip:
           type: string
+          pattern: '^\d{5}$'
+
+    Customer:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        first_name:
+          type: string
+        last_name:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        address:
+          $ref: '#/components/schemas/Address'
+        status:
+          type: string
+          enum: [active, inactive]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateCustomerRequest:
+      type: object
+      required: [first_name, last_name, email, address]
+      properties:
+        first_name:
+          type: string
+        last_name:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        address:
+          $ref: '#/components/schemas/Address'
+
+    AddressChangeRequest:
+      type: object
+      required: [street, city, state, zip]
+      properties:
+        street:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+          minLength: 2
+          maxLength: 2
+        zip:
+          type: string
+          pattern: '^\d{5}$'
+
+    AddressChangeResponse:
+      type: object
+      properties:
+        customer:
+          $ref: '#/components/schemas/Customer'
+        premium_recalculation:
+          $ref: '#/components/schemas/RecalculationResult'
+        coverage_reevaluation:
+          type: object
+          properties:
+            triggered:
+              type: boolean
+            state:
+              type: string
+            result:
+              type: string
 
     Policy:
       type: object
       properties:
-        policyNumber:
+        id:
           type: string
-        customerId:
-          type: integer
-          format: int64
-        policyType:
+          format: uuid
+        customer_id:
           type: string
-          enum: [HOME, AUTO, LIFE, HEALTH]
-        coverageAmount:
+          format: uuid
+        type:
+          type: string
+          enum: [home, auto, life, umbrella]
+        status:
+          type: string
+          enum: [active, inactive, pending_review]
+        premium_annual:
           type: number
-          format: decimal
-        premium:
+          format: double
+        coverage_amount:
           type: number
-          format: decimal
-        deductible:
-          type: number
-          format: decimal
-        startDate:
+          format: double
+        effective_date:
           type: string
           format: date
-        endDate:
+        expiry_date:
           type: string
           format: date
+        zip_code:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
 
-    ClaimResponse:
+    CreatePolicyRequest:
+      type: object
+      required: [customer_id, type, coverage_amount]
+      properties:
+        customer_id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [home, auto, life, umbrella]
+        coverage_amount:
+          type: number
+          format: double
+        zip_code:
+          type: string
+
+    RecalculationResult:
       type: object
       properties:
-        success:
-          type: boolean
-        message:
+        policy_id:
           type: string
-        data:
-          $ref: '#/components/schemas/Claim'
+          format: uuid
+        old_premium:
+          type: number
+          format: double
+        new_premium:
+          type: number
+          format: double
+        risk_factors:
+          $ref: '#/components/schemas/ZipRiskFactors'
+        recalculated_at:
+          type: string
+          format: date-time
 
-    ClaimListResponse:
+    ZipRiskFactors:
       type: object
       properties:
-        success:
-          type: boolean
-        message:
+        zipcode:
           type: string
-        data:
-          type: array
-          items:
-            $ref: '#/components/schemas/Claim'
+        flood_zone:
+          type: boolean
+        hurricane_risk:
+          type: number
+          format: double
+        wildfire_risk:
+          type: number
+          format: double
+        crime_rate:
+          type: number
+          format: double
+        base_modifier:
+          type: number
+          format: double
+        state:
+          type: string
+        requires_coverage_review:
+          type: boolean
 
-    Claim:
+    CloudEvent:
+      type: object
+      required: [specversion, type, source, id, time, data]
+      properties:
+        specversion:
+          type: string
+          enum: ['1.0']
+        type:
+          type: string
+        source:
+          type: string
+        id:
+          type: string
+          format: uuid
+        time:
+          type: string
+          format: date-time
+        data:
+          type: object
+          properties:
+            entity_id:
+              type: string
+              format: uuid
+            entity_type:
+              type: string
+            action:
+              type: string
+            actor:
+              type: string
+            changes:
+              type: object
+              properties:
+                before:
+                  type: object
+                after:
+                  type: object
+
+    AuditEvent:
       type: object
       properties:
         id:
-          type: integer
-          format: int64
-        claimNumber:
           type: string
-        policyId:
-          type: integer
-          format: int64
-        customerId:
-          type: integer
-          format: int64
-        claimType:
+          format: uuid
+        specversion:
           type: string
-        description:
+        type:
           type: string
-        status:
+        source:
           type: string
-        amountClaimed:
-          type: number
-          format: decimal
-        amountApproved:
-          type: number
-          format: decimal
-        incidentDate:
+        time:
           type: string
           format: date-time
-        filedDate:
+        entity_id:
           type: string
-          format: date-time
-        resolvedDate:
+          format: uuid
+        entity_type:
           type: string
-          format: date-time
+        action:
+          type: string
+        actor:
+          type: string
+        changes:
+          type: object
+        enrichment:
+          type: object
+          description: Cross-service enrichment data
+
+    AuditStats:
+      type: object
+      properties:
+        total_events:
+          type: integer
+        events_by_type:
+          type: object
+          additionalProperties:
+            type: integer
+        events_by_source:
+          type: object
+          additionalProperties:
+            type: integer
+        time_range:
+          type: object
+          properties:
+            earliest:
+              type: string
+              format: date-time
+            latest:
+              type: string
+              format: date-time
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            type: object

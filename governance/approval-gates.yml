@@ -1,0 +1,54 @@
+# Approval Gates Configuration
+# Defines required approvals for different change types
+
+gates:
+  schema_change:
+    description: "Database schema modifications"
+    required_approvers: 2
+    approver_roles:
+      - tech-lead
+      - dba
+    artifacts:
+      - migration_script
+      - rollback_script
+      - impact_analysis
+
+  api_change:
+    description: "API endpoint additions or modifications"
+    required_approvers: 1
+    approver_roles:
+      - tech-lead
+    artifacts:
+      - adr_reference
+      - openapi_spec_update
+      - integration_tests
+
+  business_logic:
+    description: "Premium calculation or coverage evaluation changes"
+    required_approvers: 2
+    approver_roles:
+      - tech-lead
+      - compliance-officer
+    artifacts:
+      - adr_reference
+      - actuarial_review
+      - gherkin_specs
+
+  security:
+    description: "Authentication, authorization, or data access changes"
+    required_approvers: 2
+    approver_roles:
+      - tech-lead
+      - security-engineer
+    artifacts:
+      - security_review
+      - penetration_test_results
+
+  dependency_update:
+    description: "Third-party dependency version changes"
+    required_approvers: 1
+    approver_roles:
+      - tech-lead
+    artifacts:
+      - vulnerability_scan
+      - compatibility_test
