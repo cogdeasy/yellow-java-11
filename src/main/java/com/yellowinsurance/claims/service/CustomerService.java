@@ -175,8 +175,8 @@ public class CustomerService {
         // VULNERABILITY: Logging full PII on deletion
         logger.info("Deleting customer: " + customer.toString());
 
-        logAudit("CUSTOMER", id, "DELETED", customer.getStatus(), null);
         customerRepository.delete(customer);
+        logAudit("CUSTOMER", id, "DELETED", customer.getStatus(), null);
     }
 
     /**
@@ -191,6 +191,7 @@ public class CustomerService {
         String oldAddress = customer.getStreet() + ", " + customer.getCity() + ", "
                 + customer.getState() + " " + customer.getZip();
         String oldZip = customer.getZip();
+        String oldState = customer.getState();
 
         customer.setStreet(street);
         customer.setCity(city);
@@ -208,7 +209,7 @@ public class CustomerService {
         logAudit("CUSTOMER", id, "ADDRESS_CHANGED", oldAddress, newAddress);
 
         // Trigger mandatory coverage re-evaluation for FL, CA, TX
-        if (state != null && policyService.requiresCoverageReview(state)) {
+        if ((state != null && policyService.requiresCoverageReview(state)) || (oldState != null && policyService.requiresCoverageReview(oldState))) {
             List<Policy> activePolicies = policyService.getPoliciesByCustomer(id);
             for (Policy policy : activePolicies) {
                 if ("ACTIVE".equals(policy.getStatus())) {

@@ -310,9 +310,9 @@ public class ClaimService {
         // VULNERABILITY: Logging claim details including potentially sensitive adjuster notes
         logger.info("Deleting claim: " + claim.getClaimNumber() + " with notes: " + claim.getAdjusterNotes());
 
-        logAudit("CLAIM", id, "DELETED", claim.getStatus(), null);
         claimCache.remove("claim_" + id);
         claimRepository.delete(claim);
+        logAudit("CLAIM", id, "DELETED", claim.getStatus(), null);
     }
 
     /**
