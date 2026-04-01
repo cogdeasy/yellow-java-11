@@ -8,6 +8,7 @@ COPY pom.xml .
 COPY customer-service/pom.xml customer-service/
 COPY policy-service/pom.xml policy-service/
 COPY audit-service/pom.xml audit-service/
+COPY claims-service/pom.xml claims-service/
 
 # Download dependencies (cached layer)
 RUN mvn dependency:go-offline -B
