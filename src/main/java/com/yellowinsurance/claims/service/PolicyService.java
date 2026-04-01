@@ -205,15 +205,19 @@ public class PolicyService {
     }
 
     private void logAudit(String entityType, Long entityId, String action, String oldValue, String newValue) {
-        AuditLog log = new AuditLog();
-        log.setEntityType(entityType);
-        log.setEntityId(entityId);
-        log.setAction(action);
-        log.setPerformedBy("system");
-        log.setOldValue(oldValue);
-        log.setNewValue(newValue);
-        log.setCreatedAt(LocalDateTime.now());
-        auditLogRepository.save(log);
+        try {
+            AuditLog log = new AuditLog();
+            log.setEntityType(entityType);
+            log.setEntityId(entityId);
+            log.setAction(action);
+            log.setPerformedBy("system");
+            log.setOldValue(oldValue);
+            log.setNewValue(newValue);
+            log.setCreatedAt(LocalDateTime.now());
+            auditLogRepository.save(log);
+        } catch (Exception e) {
+            logger.error("Failed to create audit log", e);
+        }
     }
 
     private String generatePolicyNumber(String type) {

@@ -14,6 +14,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -166,6 +167,22 @@ public class AdminController {
 
             // Delegate to ReportService (which has path traversal vulnerability)
             String filePath = reportService.exportReport(reportName, content);
+
+            // Audit event for report export
+            try {
+                AuditLog auditLog = new AuditLog();
+                auditLog.setEntityType("REPORT");
+                auditLog.setEntityId(0L);
+                auditLog.setAction("EXPORTED");
+                auditLog.setPerformedBy("system");
+                auditLog.setOldValue(reportName);
+                auditLog.setNewValue(filePath);
+                auditLog.setCreatedAt(LocalDateTime.now());
+                auditLogRepository.save(auditLog);
+            } catch (Exception auditEx) {
+                // ISSUE: Silently swallowing audit failure
+                System.err.println("Audit log failed: " + auditEx.getMessage());
+            }
 
             Map<String, String> result = new HashMap<>();
             result.put("reportName", reportName);

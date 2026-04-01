@@ -155,11 +155,16 @@ public class ClaimController {
         try {
             Claim claim = claimService.assignAdjuster(id, adjuster);
 
-            // Send notification to the adjuster
-            notificationService.sendClaimNotification(
-                    adjuster + "@yellowinsurance.com",
-                    claim.getClaimNumber(),
-                    "ASSIGNED to you for review");
+            // Send notification to the adjuster (in separate try-catch)
+            try {
+                notificationService.sendClaimNotification(
+                        adjuster + "@yellowinsurance.com",
+                        claim.getClaimNumber(),
+                        "ASSIGNED to you for review");
+            } catch (Exception notifEx) {
+                System.err.println("WARNING: Notification failed for claim " + claim.getClaimNumber()
+                        + ": " + notifEx.getMessage());
+            }
 
             return ResponseEntity.ok(ApiResponse.ok(claim));
         } catch (Exception e) {

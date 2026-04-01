@@ -190,6 +190,7 @@ public class CustomerService {
 
         String oldAddress = customer.getStreet() + ", " + customer.getCity() + ", "
                 + customer.getState() + " " + customer.getZip();
+        String oldZip = customer.getZip();
 
         customer.setStreet(street);
         customer.setCity(city);
@@ -212,8 +213,7 @@ public class CustomerService {
             for (Policy policy : activePolicies) {
                 if ("ACTIVE".equals(policy.getStatus())) {
                     try {
-                        // ISSUE: Using old zip as default - no tracking of previous zip
-                        policyService.recalculatePremium(policy.getId(), zip, "00000");
+                        policyService.recalculatePremium(policy.getId(), zip, oldZip);
                         logger.info("Coverage re-evaluated for policy " + policy.getId()
                                 + " due to address change to " + state);
                     } catch (Exception e) {
@@ -228,15 +228,19 @@ public class CustomerService {
     }
 
     private void logAudit(String entityType, Long entityId, String action, String oldValue, String newValue) {
-        AuditLog log = new AuditLog();
-        log.setEntityType(entityType);
-        log.setEntityId(entityId);
-        log.setAction(action);
-        log.setPerformedBy("system");
-        log.setOldValue(oldValue);
-        log.setNewValue(newValue);
-        log.setCreatedAt(LocalDateTime.now());
-        auditLogRepository.save(log);
+        try {
+            AuditLog log = new AuditLog();
+            log.setEntityType(entityType);
+            log.setEntityId(entityId);
+            log.setAction(action);
+            log.setPerformedBy("system");
+            log.setOldValue(oldValue);
+            log.setNewValue(newValue);
+            log.setCreatedAt(LocalDateTime.now());
+            auditLogRepository.save(log);
+        } catch (Exception e) {
+            logger.error("Failed to create audit log", e);
+        }
     }
 
     // ISSUE: Risk score calculation with magic numbers and no documentation
