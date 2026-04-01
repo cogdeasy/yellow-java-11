@@ -10,15 +10,15 @@ info:
     name: Engineering Team
 
 servers:
-  - url: http://localhost:8081
+  - url: http://localhost:3001
     description: Customer Service (Policyholder Records)
-  - url: http://localhost:8082
+  - url: http://localhost:3002
     description: Policy Service (Policy Platform)
-  - url: http://localhost:8083
+  - url: http://localhost:3003
     description: Audit Service (Compliance Data Store)
 
 paths:
-  # ── Customer Service (port 8081) ──────────────────────────────
+  # ── Customer Service (port 3001) ──────────────────────────────
   /api/v1/customers:
     get:
       summary: List policyholder profiles
@@ -124,7 +124,7 @@ paths:
         '404':
           description: Customer not found
 
-  # ── Policy Service (port 8082) ────────────────────────────────
+  # ── Policy Service (port 3002) ────────────────────────────────
   /api/v1/policies:
     get:
       summary: List policies
@@ -255,7 +255,7 @@ paths:
         '404':
           description: ZIP code not found
 
-  # ── Audit Service (port 8083) ─────────────────────────────────
+  # ── Audit Service (port 3003) ─────────────────────────────────
   /api/v2/audit-trail:
     get:
       summary: Aggregated audit trail with cross-service enrichment
