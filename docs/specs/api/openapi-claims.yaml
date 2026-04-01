@@ -1,0 +1,492 @@
+openapi: 3.0.3
+info:
+  title: Yellow Insurance Claims Management API
+  description: |
+    REST API for managing insurance claims, customers, policies, and documents.
+    This API serves the Yellow Insurance Claims Management System (Java 11).
+  version: 1.0.0
+  contact:
+    name: Yellow Insurance Engineering
+    email: engineering@yellowinsurance.com
+
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+
+security:
+  - basicAuth: []
+
+paths:
+  /api/v1/claims:
+    get:
+      summary: List all claims
+      tags: [Claims]
+      responses:
+        '200':
+          description: List of claims
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClaimListResponse'
+    post:
+      summary: Create a new claim
+      tags: [Claims]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClaimDTO'
+      responses:
+        '201':
+          description: Claim created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClaimResponse'
+
+  /api/v1/claims/{id}:
+    get:
+      summary: Get claim by ID
+      tags: [Claims]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Claim details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClaimResponse'
+        '404':
+          description: Claim not found
+
+  /api/v1/claims/{id}/status:
+    patch:
+      summary: Update claim status
+      tags: [Claims]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: status
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [OPEN, UNDER_REVIEW, APPROVED, DENIED, CLOSED]
+        - name: notes
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Status updated
+
+  /api/v1/claims/search:
+    get:
+      summary: Search claims
+      tags: [Claims]
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: sortBy
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: sortOrder
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [ASC, DESC]
+      responses:
+        '200':
+          description: Search results
+
+  /api/v1/claims/statistics:
+    get:
+      summary: Get claim statistics
+      tags: [Claims]
+      responses:
+        '200':
+          description: Claim statistics
+
+  /api/v1/customers:
+    get:
+      summary: List all customers
+      tags: [Customers]
+      responses:
+        '200':
+          description: List of customers
+    post:
+      summary: Create a new customer
+      tags: [Customers]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerDTO'
+      responses:
+        '201':
+          description: Customer created
+
+  /api/v1/customers/{id}:
+    get:
+      summary: Get customer by ID
+      tags: [Customers]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Customer details
+        '404':
+          description: Customer not found
+    put:
+      summary: Update customer
+      tags: [Customers]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerDTO'
+      responses:
+        '200':
+          description: Customer updated
+
+  /api/v1/customers/search:
+    get:
+      summary: Search customers
+      tags: [Customers]
+      parameters:
+        - name: name
+          in: query
+          schema:
+            type: string
+        - name: email
+          in: query
+          schema:
+            type: string
+        - name: state
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Search results
+
+  /api/v1/policies:
+    get:
+      summary: List policies
+      tags: [Policies]
+      parameters:
+        - name: customerId
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: List of policies
+    post:
+      summary: Create a new policy
+      tags: [Policies]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Policy'
+      responses:
+        '201':
+          description: Policy created
+
+  /api/v1/policies/{id}/recalculate:
+    post:
+      summary: Recalculate premium based on new ZIP code
+      tags: [Policies]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                new_zipcode:
+                  type: string
+                old_zipcode:
+                  type: string
+      responses:
+        '200':
+          description: Premium recalculation result
+
+  /api/v1/policies/zip-risk/{zipcode}:
+    get:
+      summary: Get ZIP code risk factors
+      tags: [Policies]
+      parameters:
+        - name: zipcode
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Risk factor data
+
+  /api/v1/documents/upload:
+    post:
+      summary: Upload a document
+      tags: [Documents]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                claimId:
+                  type: integer
+                  format: int64
+                customerId:
+                  type: integer
+                  format: int64
+                file:
+                  type: string
+                  format: binary
+                uploadedBy:
+                  type: string
+      responses:
+        '201':
+          description: Document uploaded
+
+  /api/v1/documents/{id}/download:
+    get:
+      summary: Download a document
+      tags: [Documents]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: File content
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+
+  /api/v1/admin/health:
+    get:
+      summary: Health check
+      tags: [Admin]
+      security: []
+      responses:
+        '200':
+          description: Application health status
+
+  /api/v1/admin/audit-logs:
+    get:
+      summary: Get audit logs
+      tags: [Admin]
+      parameters:
+        - name: entityType
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: entityId
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Audit log entries
+
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+
+  schemas:
+    ClaimDTO:
+      type: object
+      properties:
+        policyId:
+          type: integer
+          format: int64
+        customerId:
+          type: integer
+          format: int64
+        claimType:
+          type: string
+          enum: [WATER_DAMAGE, WILDFIRE, COLLISION, WIND_DAMAGE, FLOOD, THEFT, MOLD]
+        description:
+          type: string
+          maxLength: 4000
+        amountClaimed:
+          type: number
+          format: decimal
+        incidentDate:
+          type: string
+          format: date-time
+
+    CustomerDTO:
+      type: object
+      required: [firstName, lastName, email]
+      properties:
+        firstName:
+          type: string
+          maxLength: 100
+        lastName:
+          type: string
+          maxLength: 100
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        dateOfBirth:
+          type: string
+          format: date
+        street:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+          maxLength: 2
+        zip:
+          type: string
+
+    Policy:
+      type: object
+      properties:
+        policyNumber:
+          type: string
+        customerId:
+          type: integer
+          format: int64
+        policyType:
+          type: string
+          enum: [HOME, AUTO, LIFE, HEALTH]
+        coverageAmount:
+          type: number
+          format: decimal
+        premium:
+          type: number
+          format: decimal
+        deductible:
+          type: number
+          format: decimal
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+
+    ClaimResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/Claim'
+
+    ClaimListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Claim'
+
+    Claim:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        claimNumber:
+          type: string
+        policyId:
+          type: integer
+          format: int64
+        customerId:
+          type: integer
+          format: int64
+        claimType:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+        amountClaimed:
+          type: number
+          format: decimal
+        amountApproved:
+          type: number
+          format: decimal
+        incidentDate:
+          type: string
+          format: date-time
+        filedDate:
+          type: string
+          format: date-time
+        resolvedDate:
+          type: string
+          format: date-time

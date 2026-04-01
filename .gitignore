@@ -2,6 +2,7 @@
 target/
 *.jar
 *.war
+*.ear
 
 # IDE
 .idea/
@@ -9,6 +10,7 @@ target/
 .project
 .classpath
 .settings/
+.factorypath
 .vscode/
 *.swp
 *.swo
@@ -17,6 +19,14 @@ target/
 .DS_Store
 Thumbs.db
 
-# Env
-.env
+# Logs
+logs/
 *.log
+
+# Temp files
+/tmp/
+*.tmp
+
+# Environment
+.env
+.env.local
